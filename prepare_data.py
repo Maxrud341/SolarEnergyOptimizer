@@ -90,11 +90,11 @@ def load_and_prepare_solar() -> pd.DataFrame:
     df["datetime"] = df["datetime"].dt.floor("h")
 
     # `Vyroba` in raw file looks like Wh for the hour, so divide by 1000 to get kWh.
-    df["pv_generation_kwh"] = df["Vyroba"].fillna(0).astype(float) / 1000.0
+    df["pv_forecast_kwh"] = df["Vyroba"].fillna(0).astype(float) / 1000.0
 
     solar = (
         df.groupby("datetime", as_index=False)
-        .agg(pv_generation_kwh=("pv_generation_kwh", "sum"))
+        .agg(pv_forecast_kwh=("pv_forecast_kwh", "sum"))
         .sort_values("datetime")
         .reset_index(drop=True)
     )
@@ -145,7 +145,7 @@ def merge_all_data() -> pd.DataFrame:
         "wind_speed_ms",
         "wind_dir_deg",
         "humidity_pct",
-        "pv_generation_kwh",
+        "pv_forecast_kwh",
     ]
 
     merged = merged[[col for col in keep_columns if col in merged.columns]].copy()
