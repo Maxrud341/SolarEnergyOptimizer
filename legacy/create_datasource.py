@@ -7,7 +7,7 @@ import pandas as pd
 from pathlib import Path
 
 
-BATTERY_SIZE_KWH = 0.5  # Battery capacity in kWh
+BATTERY_SIZE_KWH = 10.0  # Battery capacity in kWh
 
 
 def load_source_data():
@@ -15,9 +15,11 @@ def load_source_data():
     data_dir = Path("data")
     
     maly = pd.read_csv(data_dir / "Maly.csv", sep=';')
+    if "ID_ZDROJE" in maly.columns:
+        maly = maly[maly["ID_ZDROJE"] == 1].copy()
     maly['DatumCas'] = pd.to_datetime(maly['DatumCas'])
     
-    print(f"Maly: {len(maly)} records (5-minute intervals)")
+    print(f"Maly (ID_ZDROJE=1): {len(maly)} records (5-minute intervals)")
     
     return maly
 
@@ -27,11 +29,15 @@ def process_to_5min(maly):
     
     print("\nProcessing Maly.csv...")
     
+    # Clip outliers
+    maly['P_HOME'] = maly['P_HOME'].clip(lower=-17500.0, upper=0.0)
+    maly['P_PV'] = maly['P_PV'].clip(lower=0.0, upper=10000.0)
+    
     # CONSUMPTION: W -> kWh per 5 min
     maly['consumption_kwh'] = maly['P_HOME'].abs() * 5 / 60 / 1000
     
     # PRODUCTION: W -> kWh per 5 min (positive values only)
-    maly['production_kwh'] = maly['P_PV'].clip(lower=0) * 5 / 60 / 1000
+    maly['production_kwh'] = maly['P_PV'] * 5 / 60 / 1000
     
     # BATTERY: SOC (%) -> kWh (using BATTERY_SIZE_KWH)
     maly['battery_kwh'] = maly['SoC'].clip(0, 100) / 100 * BATTERY_SIZE_KWH
@@ -52,7 +58,7 @@ def process_to_5min(maly):
 def save_datasource(df, output_path):
     """Save dataset to CSV."""
     df.to_csv(output_path, sep=";", index=False)
-    print(f"\n✓ Saved: {output_path}")
+    print(f"\n[OK] Saved: {output_path}")
 
 
 def main():

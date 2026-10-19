@@ -1,13 +1,20 @@
 {
   "consumption_kwh:5": [
-    "hour_cos"
+    "hour_cos",
+    "hour_sin"
+  ],
+  "price_czk_per_kwh:3": [
+    "is_weekend",
+    "temperature_c"
   ],
   "price_czk_per_kwh:5": [
-    "hour_cos",
-    "is_weekend"
+    "is_weekend",
+    "temperature_c",
+    "wind_speed_ms"
   ],
   "pv_forecast_kwh:5": [
     "hour_cos",
+    "temperature_c",
     "humidity_pct"
   ]
 }
