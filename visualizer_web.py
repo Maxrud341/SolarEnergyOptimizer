@@ -458,7 +458,7 @@ buy_sum = valid_day["buy_kwh"].dropna().sum() if "buy_kwh" in valid_day.columns 
 sell_sum = valid_day["sell_kwh"].dropna().sum() if "sell_kwh" in valid_day.columns else 0.0
 dis_sum = valid_day["discharge_kwh"].dropna().sum() if "discharge_kwh" in valid_day.columns else 0.0
 curt_sum = valid_day["curtailment_kwh"].dropna().sum() if "curtailment_kwh" in valid_day.columns else 0.0
-cycles = dis_sum / 9.5
+cycles = dis_sum / 8.192  # Fox-ESS HV2600 HS10.4: 10.24 kWh * (1.00 - 0.20) = 8.192 kWh usable
 profit_sum = valid_day["net_profit_czk"].dropna().sum() if "net_profit_czk" in valid_day.columns else 0.0
 
 kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)

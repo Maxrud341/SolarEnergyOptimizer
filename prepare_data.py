@@ -6,7 +6,7 @@ import pandas as pd
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 DEFAULT_ID_ZDROJE = 1
-BATTERY_CAPACITY_KWH = 10.0  # Empirically measured capacity (~9.6-10.0 kWh usable)
+BATTERY_CAPACITY_KWH = 10.24  # Fox-ESS HV2600 HS10.4 nominal capacity (10.24 kWh)
 MAX_HOME_POWER_W = 17500.0   # Standard 3x25A breaker limit (~17.25 kW)
 MAX_PHASE_POWER_W = 10000.0  # Max physical power per phase breaker (~25-32A limit)
 MAX_PV_POWER_W = 10000.0     # 8.7 kW PV array limit

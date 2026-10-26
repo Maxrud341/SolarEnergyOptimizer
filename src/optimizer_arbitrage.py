@@ -34,13 +34,13 @@ from src.optimizer_v3 import (
 
 @dataclass(frozen=True)
 class OptimizerArbitrageConfig:
-    battery_capacity_kwh: float = 10.0
-    soc_min: float = 0.05  # 5% aggressive limit
+    battery_capacity_kwh: float = 10.24  # Fox-ESS HV2600 HS10.4 nominal capacity (10.24 kWh)
+    soc_min: float = 0.20  # 20% minimum discharge limit
     soc_max: float = 1.00  # 100% full capacity
-    battery_power_max_kw: float = 3.6  # Standard continuous inverter battery power limit
-    charge_efficiency: float = 0.90
-    discharge_efficiency: float = 0.90
-    degradation_cost_czk_per_kwh: float = 0.25  # Battery cycle degradation
+    battery_power_max_kw: float = 5.0  # Fox-ESS HV2600 25A recommended discharge current (5.12 kW) / 5 kW continuous
+    charge_efficiency: float = 0.975  # Fox-ESS round-trip efficiency > 95% (sqrt(0.95) ≈ 0.975)
+    discharge_efficiency: float = 0.975
+    degradation_cost_czk_per_kwh: float = 0.20  # LFP cell warranty >=6000 cycles
     grid_limit_kw: float = 10.0
     import_fee_czk_per_kwh: float = 1.80  # Czech distribution grid fee
     vat_rate: float = 0.21  # Czech VAT
@@ -451,7 +451,8 @@ def compute_arbitrage_kpis(df: pd.DataFrame) -> dict:
     total_deg_czk = float(valid_df["degradation_cost_czk"].dropna().sum())
     net_profit_czk = float(valid_df["net_profit_czk"].dropna().sum())
 
-    total_cycles = total_dis_kwh / 9.5
+    usable_capacity_kwh = 10.24 * (1.00 - 0.20)  # 8.192 kWh usable range (20% to 100%)
+    total_cycles = total_dis_kwh / usable_capacity_kwh
 
     return {
         "steps": len(valid_df),
@@ -480,11 +481,15 @@ def main() -> None:
     parser.add_argument("--start-date", type=str, default=None, help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", type=str, default=None, help="End date (YYYY-MM-DD)")
     parser.add_argument("--max-steps", type=int, default=None, help="Backtest steps in hours")
-    parser.add_argument("--battery-power", type=float, default=3.6, help="Max battery power in kW")
+    parser.add_argument("--battery-capacity", type=float, default=10.24, help="Battery capacity in kWh")
+    parser.add_argument("--battery-power", type=float, default=5.0, help="Max battery power in kW")
+    parser.add_argument("--soc-min", type=float, default=0.20, help="Min SoC discharge floor")
     parser.add_argument("--model-type", type=str, default="lgbm", choices=["lgbm", "hgb", "linear"])
     args = parser.parse_args()
 
     cfg = OptimizerArbitrageConfig(
+        battery_capacity_kwh=args.battery_capacity,
+        soc_min=args.soc_min,
         battery_power_max_kw=args.battery_power,
         model_type=args.model_type,
     )
