@@ -35,6 +35,21 @@ ROUNDTRIP_EFFICIENCY: float = EFFICIENCY_CHARGE * EFFICIENCY_DISCHARGE  # ~95.06
 
 DEGRADATION_COST_CZK_PER_KWH: float = 0.20  # LFP cell aging cost (~6000 cycles)
 
+# Czech spot electricity market tariff structure
+IMPORT_FEE_CZK_PER_KWH: float = 1.80   # Czech distribution grid fee (ČEZ/EG.D)
+VAT_RATE: float = 0.21                 # Czech VAT (DPH 21%)
+EXPORT_FEE_CZK_PER_KWH: float = 0.45   # Trader export deduction fee
+GRID_LIMIT_KW: float = 10.0            # Point of Common Coupling (PCC) physical limit
+
+# Mathematical Optimization (MPC & Safety Margins)
+MPC_HORIZON_HOURS: int = 24
+FORECAST_PV_SAFETY_FACTOR: float = 0.80    # 20% conservative uncertainty discount
+FORECAST_LOAD_SAFETY_FACTOR: float = 1.15  # 15% safety buffer on home consumption
+PREFLUSH_MIN_SURPLUS_KWH: float = 3.0
+PREFLUSH_MIN_SELL_PRICE_CZK: float = 2.00
+ALLOW_CURTAILMENT: bool = True
+
+
 
 # =====================================================================
 # 2. Solar Photovoltaic (PV) Plant Constants
