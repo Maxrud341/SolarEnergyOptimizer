@@ -27,30 +27,54 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
-# Add project root to sys.path
-project_root = Path(__file__).resolve().parent.parent
+# Add this directory and parent to sys.path
+this_dir = Path(__file__).resolve().parent
+if str(this_dir) not in sys.path:
+    sys.path.insert(0, str(this_dir))
+project_root = this_dir.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from real_time.config import (
-    BATTERY_CAPACITY_KWH,
-    BATTERY_POWER_MAX_KW,
-    DB_PATH,
-    MAX_DB_SIZE_BYTES,
-    MQTT_BROKER_HOST,
-    MQTT_BROKER_PORT,
-    MQTT_TOPIC_RX,
-    MQTT_TOPIC_TX,
-    SOC_MAX,
-    SOC_MIN,
-    WATCHDOG_TIMEOUT_SEC,
-)
-from real_time.database import (
-    get_latest_tick,
-    get_recent_ticks,
-    get_today_ticks,
-    init_db,
-)
+try:
+    from real_time.config import (
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_KW,
+        DB_PATH,
+        MAX_DB_SIZE_BYTES,
+        MQTT_BROKER_HOST,
+        MQTT_BROKER_PORT,
+        MQTT_TOPIC_RX,
+        MQTT_TOPIC_TX,
+        SOC_MAX,
+        SOC_MIN,
+        WATCHDOG_TIMEOUT_SEC,
+    )
+    from real_time.database import (
+        get_latest_tick,
+        get_recent_ticks,
+        get_today_ticks,
+        init_db,
+    )
+except ImportError:
+    from config import (
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_KW,
+        DB_PATH,
+        MAX_DB_SIZE_BYTES,
+        MQTT_BROKER_HOST,
+        MQTT_BROKER_PORT,
+        MQTT_TOPIC_RX,
+        MQTT_TOPIC_TX,
+        SOC_MAX,
+        SOC_MIN,
+        WATCHDOG_TIMEOUT_SEC,
+    )
+    from database import (
+        get_latest_tick,
+        get_recent_ticks,
+        get_today_ticks,
+        init_db,
+    )
 
 # =====================================================================
 # 1. Page Configuration & Microgrid Dark Styling

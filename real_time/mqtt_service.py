@@ -21,31 +21,58 @@ from typing import Any
 
 import paho.mqtt.client as mqtt
 
-from real_time.config import (
-    CzechCommand,
-    CzechReason,
-    MAX_VALID_STEP_SEC,
-    MIN_VALID_STEP_SEC,
-    MQTT_BROKER_HOST,
-    MQTT_BROKER_PORT,
-    MQTT_KEEPALIVE_SEC,
-    MQTT_PASSWORD,
-    MQTT_TOPIC_RX,
-    MQTT_TOPIC_TX,
-    MQTT_USERNAME,
-    NOMINAL_STEP_SEC,
-    STALE_PACKET_MAX_AGE_SEC,
-    WATCHDOG_TIMEOUT_SEC,
-)
-from real_time.controller import RealTimeController
-from real_time.database import (
-    enforce_db_size_limit,
-    init_db,
-    load_sim_soc,
-    record_system_event,
-    save_sim_soc,
-    save_telemetry_tick,
-)
+try:
+    from real_time.config import (
+        CzechCommand,
+        CzechReason,
+        MAX_VALID_STEP_SEC,
+        MIN_VALID_STEP_SEC,
+        MQTT_BROKER_HOST,
+        MQTT_BROKER_PORT,
+        MQTT_KEEPALIVE_SEC,
+        MQTT_PASSWORD,
+        MQTT_TOPIC_RX,
+        MQTT_TOPIC_TX,
+        MQTT_USERNAME,
+        NOMINAL_STEP_SEC,
+        STALE_PACKET_MAX_AGE_SEC,
+        WATCHDOG_TIMEOUT_SEC,
+    )
+    from real_time.controller import RealTimeController
+    from real_time.database import (
+        enforce_db_size_limit,
+        init_db,
+        load_sim_soc,
+        record_system_event,
+        save_sim_soc,
+        save_telemetry_tick,
+    )
+except ImportError:
+    from config import (
+        CzechCommand,
+        CzechReason,
+        MAX_VALID_STEP_SEC,
+        MIN_VALID_STEP_SEC,
+        MQTT_BROKER_HOST,
+        MQTT_BROKER_PORT,
+        MQTT_KEEPALIVE_SEC,
+        MQTT_PASSWORD,
+        MQTT_TOPIC_RX,
+        MQTT_TOPIC_TX,
+        MQTT_USERNAME,
+        NOMINAL_STEP_SEC,
+        STALE_PACKET_MAX_AGE_SEC,
+        WATCHDOG_TIMEOUT_SEC,
+    )
+    from controller import RealTimeController
+    from database import (
+        enforce_db_size_limit,
+        init_db,
+        load_sim_soc,
+        record_system_event,
+        save_sim_soc,
+        save_telemetry_tick,
+    )
 
 # Setup clean console logging
 logging.basicConfig(

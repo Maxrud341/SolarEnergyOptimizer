@@ -22,27 +22,50 @@ import numpy as np
 import pandas as pd
 import pulp as pl
 
-from real_time.config import (
-    ALLOW_CURTAILMENT,
-    BATTERY_CAPACITY_KWH,
-    BATTERY_POWER_MAX_KW,
-    CzechCommand,
-    CzechReason,
-    DEGRADATION_COST_CZK_PER_KWH,
-    EFFICIENCY_CHARGE,
-    EFFICIENCY_DISCHARGE,
-    EXPORT_FEE_CZK_PER_KWH,
-    FORECAST_LOAD_SAFETY_FACTOR,
-    FORECAST_PV_SAFETY_FACTOR,
-    GRID_LIMIT_KW,
-    IMPORT_FEE_CZK_PER_KWH,
-    MPC_HORIZON_HOURS,
-    PREFLUSH_MIN_SELL_PRICE_CZK,
-    PREFLUSH_MIN_SURPLUS_KWH,
-    SOC_MAX,
-    SOC_MIN,
-    VAT_RATE,
-)
+try:
+    from real_time.config import (
+        ALLOW_CURTAILMENT,
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_KW,
+        CzechCommand,
+        CzechReason,
+        DEGRADATION_COST_CZK_PER_KWH,
+        EFFICIENCY_CHARGE,
+        EFFICIENCY_DISCHARGE,
+        EXPORT_FEE_CZK_PER_KWH,
+        FORECAST_LOAD_SAFETY_FACTOR,
+        FORECAST_PV_SAFETY_FACTOR,
+        GRID_LIMIT_KW,
+        IMPORT_FEE_CZK_PER_KWH,
+        MPC_HORIZON_HOURS,
+        PREFLUSH_MIN_SELL_PRICE_CZK,
+        PREFLUSH_MIN_SURPLUS_KWH,
+        SOC_MAX,
+        SOC_MIN,
+        VAT_RATE,
+    )
+except ImportError:
+    from config import (
+        ALLOW_CURTAILMENT,
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_KW,
+        CzechCommand,
+        CzechReason,
+        DEGRADATION_COST_CZK_PER_KWH,
+        EFFICIENCY_CHARGE,
+        EFFICIENCY_DISCHARGE,
+        EXPORT_FEE_CZK_PER_KWH,
+        FORECAST_LOAD_SAFETY_FACTOR,
+        FORECAST_PV_SAFETY_FACTOR,
+        GRID_LIMIT_KW,
+        IMPORT_FEE_CZK_PER_KWH,
+        MPC_HORIZON_HOURS,
+        PREFLUSH_MIN_SELL_PRICE_CZK,
+        PREFLUSH_MIN_SURPLUS_KWH,
+        SOC_MAX,
+        SOC_MIN,
+        VAT_RATE,
+    )
 
 logger = logging.getLogger("LpOptimizerRT")
 

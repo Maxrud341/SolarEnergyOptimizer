@@ -12,18 +12,32 @@ import datetime as dt
 import logging
 from typing import Any
 
-from real_time.battery_sim import BatteryStepResult, FoxEssBatterySimulator
-from real_time.config import (
-    BATTERY_CAPACITY_KWH,
-    BATTERY_POWER_MAX_W,
-    CzechCommand,
-    CzechReason,
-    SOC_MAX,
-    SOC_MIN,
-)
-from real_time.lp_optimizer import LpArbitrageOptimizerRT, PlannedHourAction
-from real_time.price_fetcher import SpotPriceFetcher
-from real_time.weather_fetcher import SolarWeatherFetcher
+try:
+    from real_time.battery_sim import BatteryStepResult, FoxEssBatterySimulator
+    from real_time.config import (
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_W,
+        CzechCommand,
+        CzechReason,
+        SOC_MAX,
+        SOC_MIN,
+    )
+    from real_time.lp_optimizer import LpArbitrageOptimizerRT, PlannedHourAction
+    from real_time.price_fetcher import SpotPriceFetcher
+    from real_time.weather_fetcher import SolarWeatherFetcher
+except ImportError:
+    from battery_sim import BatteryStepResult, FoxEssBatterySimulator
+    from config import (
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_W,
+        CzechCommand,
+        CzechReason,
+        SOC_MAX,
+        SOC_MIN,
+    )
+    from lp_optimizer import LpArbitrageOptimizerRT, PlannedHourAction
+    from price_fetcher import SpotPriceFetcher
+    from weather_fetcher import SolarWeatherFetcher
 
 logger = logging.getLogger("RealTimeController")
 

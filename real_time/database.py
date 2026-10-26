@@ -15,11 +15,18 @@ from typing import Any
 
 import pandas as pd
 
-from real_time.config import (
-    DATA_DIR,
-    DB_PATH,
-    MAX_DB_SIZE_BYTES,
-)
+try:
+    from real_time.config import (
+        DATA_DIR,
+        DB_PATH,
+        MAX_DB_SIZE_BYTES,
+    )
+except ImportError:
+    from config import (
+        DATA_DIR,
+        DB_PATH,
+        MAX_DB_SIZE_BYTES,
+    )
 
 
 def get_db_connection() -> sqlite3.Connection:

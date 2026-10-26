@@ -9,17 +9,30 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from real_time.config import (
-    BATTERY_CAPACITY_KWH,
-    BATTERY_POWER_MAX_W,
-    CzechCommand,
-    CzechReason,
-    DEGRADATION_COST_CZK_PER_KWH,
-    EFFICIENCY_CHARGE,
-    EFFICIENCY_DISCHARGE,
-    SOC_MAX,
-    SOC_MIN,
-)
+try:
+    from real_time.config import (
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_W,
+        CzechCommand,
+        CzechReason,
+        DEGRADATION_COST_CZK_PER_KWH,
+        EFFICIENCY_CHARGE,
+        EFFICIENCY_DISCHARGE,
+        SOC_MAX,
+        SOC_MIN,
+    )
+except ImportError:
+    from config import (
+        BATTERY_CAPACITY_KWH,
+        BATTERY_POWER_MAX_W,
+        CzechCommand,
+        CzechReason,
+        DEGRADATION_COST_CZK_PER_KWH,
+        EFFICIENCY_CHARGE,
+        EFFICIENCY_DISCHARGE,
+        SOC_MAX,
+        SOC_MIN,
+    )
 
 
 @dataclass

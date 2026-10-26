@@ -15,15 +15,26 @@ from typing import Any
 import pandas as pd
 import requests
 
-from real_time.config import (
-    LOCATION_LATITUDE,
-    LOCATION_LONGITUDE,
-    LOCATION_TIMEZONE,
-    OPEN_METEO_FORECAST_URL,
-    PV_CAPACITY_KWP,
-    PV_PERFORMANCE_RATIO,
-    PV_TEMP_COEFF_PER_C,
-)
+try:
+    from real_time.config import (
+        LOCATION_LATITUDE,
+        LOCATION_LONGITUDE,
+        LOCATION_TIMEZONE,
+        OPEN_METEO_FORECAST_URL,
+        PV_CAPACITY_KWP,
+        PV_PERFORMANCE_RATIO,
+        PV_TEMP_COEFF_PER_C,
+    )
+except ImportError:
+    from config import (
+        LOCATION_LATITUDE,
+        LOCATION_LONGITUDE,
+        LOCATION_TIMEZONE,
+        OPEN_METEO_FORECAST_URL,
+        PV_CAPACITY_KWP,
+        PV_PERFORMANCE_RATIO,
+        PV_TEMP_COEFF_PER_C,
+    )
 
 logger = logging.getLogger("WeatherFetcher")
 

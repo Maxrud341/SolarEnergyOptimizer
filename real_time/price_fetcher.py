@@ -15,11 +15,18 @@ from typing import Any
 import pandas as pd
 import requests
 
-from real_time.config import (
-    ENERGY_CHARTS_URL,
-    SPOTOVKY_TODAY_URL,
-    SPOTOVKY_TOMORROW_URL,
-)
+try:
+    from real_time.config import (
+        ENERGY_CHARTS_URL,
+        SPOTOVKY_TODAY_URL,
+        SPOTOVKY_TOMORROW_URL,
+    )
+except ImportError:
+    from config import (
+        ENERGY_CHARTS_URL,
+        SPOTOVKY_TODAY_URL,
+        SPOTOVKY_TOMORROW_URL,
+    )
 
 logger = logging.getLogger("PriceFetcher")
 
