@@ -74,11 +74,23 @@ except ImportError:
         save_telemetry_tick,
     )
 
-# Setup clean console logging
+# Setup robust logging supporting both console and pythonw background daemon
+handlers: list[logging.Handler] = []
+if sys.stderr is not None:
+    handlers.append(logging.StreamHandler(sys.stderr))
+
+try:
+    from logging.handlers import RotatingFileHandler
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    handlers.append(RotatingFileHandler(DATA_DIR / "service.log", maxBytes=5 * 1024 * 1024, backupCount=2, encoding="utf-8"))
+except Exception:
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
+    handlers=handlers or [logging.NullHandler()],
 )
 logger = logging.getLogger("MQTTService")
 
