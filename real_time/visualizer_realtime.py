@@ -259,7 +259,7 @@ else:
 ticks_df = get_recent_ticks(limit=180)  # last ~6 hours of 2-minute ticks
 
 if not ticks_df.empty:
-    ticks_df["dt"] = pd.to_datetime(ticks_df["timestamp"])
+    ticks_df["dt"] = pd.to_datetime(ticks_df["timestamp"], format="mixed", errors="coerce")
 
     fig = make_subplots(
         rows=2,
