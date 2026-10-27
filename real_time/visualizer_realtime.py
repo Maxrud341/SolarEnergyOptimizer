@@ -234,7 +234,7 @@ with st.sidebar:
     )
     st.markdown("---")
     st.subheader("🎛️ Filtry křivek a zobrazení")
-    show_soc = st.checkbox("Stav nabití baterie (SoC)", value=True)
+    show_soc = st.checkbox("Stav nabití baterie (SoC)", value=False)
     show_breakdown_costs = st.checkbox("Rozpad nákupních/výkupních cen", value=False)
 
     st.markdown("---")
@@ -549,17 +549,37 @@ for i in range(len(day_ticks)):
 
 plot_df = pd.DataFrame(plot_rows)
 
+# Compute hourly net profit balance (24 clean bars matching visualizer_web.py)
+date_base = day_ticks["dt"].iloc[0].floor("D")
+hours_dts = [date_base + pd.Timedelta(hours=h) for h in range(24)]
+day_ticks_copy = day_ticks.copy()
+day_ticks_copy["hour_dt"] = day_ticks_copy["dt"].dt.floor("h")
+hourly_sum = day_ticks_copy.groupby("hour_dt")["profit_step_czk"].sum()
+
+hourly_df = pd.DataFrame({"dt": hours_dts})
+hourly_df["net_profit_czk"] = hourly_df["dt"].map(hourly_sum)
+hourly_bar_colors = [
+    "#22c55e" if (pd.notna(val) and val >= 0) else "#ef4444"
+    for val in hourly_df["net_profit_czk"]
+]
+
+subplot_title_1 = (
+    "<b>⚡ Výkon energetických toků (kW) a kapacita baterie (kWh)</b>"
+    if show_soc
+    else "<b>⚡ Výkon energetických toků (kW)</b>"
+)
+
 fig = make_subplots(
     rows=2,
     cols=1,
     shared_xaxes=True,
     vertical_spacing=0.08,
     subplot_titles=(
-        "<b>⚡ Výkon energetických toků (kW) a kapacita baterie (kWh)</b>",
-        "<b>💰 Tržní spotové ceny OTE (CZK/kWh) a finanční bilance kroku (CZK)</b>",
+        subplot_title_1,
+        "<b>💰 Tržní spotové ceny OTE a hodinová bilance (CZK)</b>",
     ),
     row_heights=[0.58, 0.42],
-    specs=[[{"secondary_y": True}], [{"secondary_y": True}]],
+    specs=[[{"secondary_y": show_soc}], [{"secondary_y": False}]],
 )
 
 times = plot_df["dt"]
@@ -725,20 +745,19 @@ if show_breakdown_costs:
         col=1,
     )
 
-# Step Net Profit / Balance (Green/Red Bar Chart on Secondary Y-Axis for high visibility)
-bar_colors = ["#22c55e" if (pd.notna(val) and val >= 0) else "#ef4444" for val in plot_df["net_profit_czk"]]
+# Hourly Net Profit / Balance (24 clean bars matching visualizer_web.py)
 fig.add_trace(
     go.Bar(
-        x=times,
-        y=plot_df["net_profit_czk"],
-        name="Kroková bilance (CZK)",
-        marker_color=bar_colors,
-        opacity=0.75,
-        hovertemplate="Bilance kroku: %{y:+.3f} CZK<extra></extra>",
+        x=hourly_df["dt"],
+        y=hourly_df["net_profit_czk"],
+        name="Hodinová bilance (CZK)",
+        marker_color=hourly_bar_colors,
+        opacity=0.7,
+        hovertemplate="Výsledek hodiny: %{y:+.2f} CZK<extra></extra>",
     ),
     row=2,
     col=1,
-    secondary_y=True,
+    secondary_y=False,
 )
 
 # Zero line on financial plot
@@ -819,23 +838,11 @@ if show_soc:
     )
 
 fig.update_yaxes(
-    title_text="Cena elektřiny OTE (CZK/kWh)",
+    title_text="Cena / Bilance (CZK)",
     gridcolor="#1e293b",
     zerolinecolor="#334155",
     row=2,
     col=1,
-    secondary_y=False,
-)
-
-fig.update_yaxes(
-    title_text="Bilance kroku (CZK)",
-    gridcolor="rgba(0,0,0,0)",
-    zeroline=True,
-    zerolinecolor="#64748b",
-    zerolinewidth=1,
-    row=2,
-    col=1,
-    secondary_y=True,
 )
 
 try:
