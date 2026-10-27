@@ -234,7 +234,7 @@ with st.sidebar:
     )
     st.markdown("---")
     st.subheader("🎛️ Filtry křivek a zobrazení")
-    show_soc = st.checkbox("Stav nabití baterie (SoC)", value=False)
+    show_soc = st.checkbox("Stav nabití baterie (SoC)", value=True)
     show_breakdown_costs = st.checkbox("Rozpad nákupních/výkupních cen", value=False)
 
     st.markdown("---")
@@ -489,6 +489,10 @@ day_ticks["p_buy"] = (day_ticks["price_czk"] + IMPORT_FEE_CZK_PER_KWH) * (1.0 + 
 day_ticks["p_sell"] = day_ticks["price_czk"] - EXPORT_FEE_CZK_PER_KWH
 day_ticks["net_profit_czk"] = day_ticks["profit_step_czk"]
 
+# Instantaneous equivalent financial rate (CZK/h) for clear visible scale
+safe_dt_hours = day_ticks["dt_hours"].replace(0, 30.0 / 3600.0)
+day_ticks["profit_czk_h"] = day_ticks["net_profit_czk"] / safe_dt_hours
+
 # Sums
 load_sum = float(day_ticks["load_kwh"].sum())
 pv_sum = float(day_ticks["pv_kwh"].sum())
@@ -549,25 +553,9 @@ for i in range(len(day_ticks)):
 
 plot_df = pd.DataFrame(plot_rows)
 
-# Compute hourly net profit balance (24 clean bars matching visualizer_web.py)
-date_base = day_ticks["dt"].iloc[0].floor("D")
-hours_dts = [date_base + pd.Timedelta(hours=h) for h in range(24)]
-day_ticks_copy = day_ticks.copy()
-day_ticks_copy["hour_dt"] = day_ticks_copy["dt"].dt.floor("h")
-hourly_sum = day_ticks_copy.groupby("hour_dt")["profit_step_czk"].sum()
-
-hourly_df = pd.DataFrame({"dt": hours_dts})
-hourly_df["net_profit_czk"] = hourly_df["dt"].map(hourly_sum)
-hourly_bar_colors = [
-    "#22c55e" if (pd.notna(val) and val >= 0) else "#ef4444"
-    for val in hourly_df["net_profit_czk"]
-]
-
-subplot_title_1 = (
-    "<b>⚡ Výkon energetických toků (kW) a kapacita baterie (kWh)</b>"
-    if show_soc
-    else "<b>⚡ Výkon energetických toků (kW)</b>"
-)
+# Split into positive (green sell) and negative (red buy) for high-contrast visible bars
+plot_df["profit_pos_czk_h"] = plot_df["profit_czk_h"].apply(lambda v: v if (pd.notna(v) and v > 0) else np.nan)
+plot_df["profit_neg_czk_h"] = plot_df["profit_czk_h"].apply(lambda v: v if (pd.notna(v) and v < 0) else np.nan)
 
 fig = make_subplots(
     rows=2,
@@ -575,11 +563,11 @@ fig = make_subplots(
     shared_xaxes=True,
     vertical_spacing=0.08,
     subplot_titles=(
-        subplot_title_1,
-        "<b>💰 Tržní spotové ceny OTE a hodinová bilance (CZK)</b>",
+        "<b>⚡ Výkon energetických toků (kW) a kapacita baterie (kWh)</b>",
+        "<b>💰 Tržní spotové ceny OTE a finanční toky nákupu / prodeje (CZK/h)</b>",
     ),
     row_heights=[0.58, 0.42],
-    specs=[[{"secondary_y": show_soc}], [{"secondary_y": False}]],
+    specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
 )
 
 times = plot_df["dt"]
@@ -745,19 +733,34 @@ if show_breakdown_costs:
         col=1,
     )
 
-# Hourly Net Profit / Balance (24 clean bars matching visualizer_web.py)
+# Step Financial Flows (Green for Profit / Sell, Red for Cost / Buy)
 fig.add_trace(
     go.Bar(
-        x=hourly_df["dt"],
-        y=hourly_df["net_profit_czk"],
-        name="Hodinová bilance (CZK)",
-        marker_color=hourly_bar_colors,
-        opacity=0.7,
-        hovertemplate="Výsledek hodiny: %{y:+.2f} CZK<extra></extra>",
+        x=times,
+        y=plot_df["profit_pos_czk_h"],
+        name="Zisk z prodeje (CZK/h)",
+        marker_color="#22c55e",
+        width=45000,
+        opacity=0.85,
+        customdata=plot_df["net_profit_czk"],
+        hovertemplate="Zisk z prodeje: +%{y:.2f} CZK/h (%{customdata:+.3f} CZK/krok)<extra></extra>",
     ),
     row=2,
     col=1,
-    secondary_y=False,
+)
+fig.add_trace(
+    go.Bar(
+        x=times,
+        y=plot_df["profit_neg_czk_h"],
+        name="Náklad nákupu (CZK/h)",
+        marker_color="#ef4444",
+        width=45000,
+        opacity=0.85,
+        customdata=plot_df["net_profit_czk"],
+        hovertemplate="Náklad nákupu: %{y:.2f} CZK/h (%{customdata:+.3f} CZK/krok)<extra></extra>",
+    ),
+    row=2,
+    col=1,
 )
 
 # Zero line on financial plot
@@ -803,6 +806,7 @@ fig.update_layout(
         borderwidth=1,
         font=dict(size=11),
     ),
+    barmode="relative",
     margin=dict(l=55, r=55, t=70, b=45),
 )
 
@@ -838,7 +842,7 @@ if show_soc:
     )
 
 fig.update_yaxes(
-    title_text="Cena / Bilance (CZK)",
+    title_text="Cena (CZK/kWh) & Finanční tok (CZK/h)",
     gridcolor="#1e293b",
     zerolinecolor="#334155",
     row=2,
