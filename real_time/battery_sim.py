@@ -134,14 +134,24 @@ class FoxEssBatterySimulator:
             if actual_w > 10.0:
                 p_bat_w = actual_w
                 effective_reason = CzechReason.HOME_SAVING
-            elif p_pv_w > p_home_w and headroom_charge_kwh > 0.01:
-                # Surplus solar automatically goes to battery
+            elif p_pv_w > p_home_w:
                 surplus_w = p_pv_w - p_home_w
-                max_absorbable_w = (headroom_charge_kwh / (dt_hours * EFFICIENCY_CHARGE)) * 1000.0
-                charge_w = min(self.max_power_w, surplus_w, max_absorbable_w)
-                p_bat_w = -charge_w
-                effective_command = CzechCommand.CHARGE_PV
-                effective_reason = CzechReason.PV_SURPLUS
+                if headroom_charge_kwh > 0.01:
+                    # Surplus solar automatically goes to battery
+                    max_absorbable_w = (headroom_charge_kwh / (dt_hours * EFFICIENCY_CHARGE)) * 1000.0
+                    charge_w = min(self.max_power_w, surplus_w, max_absorbable_w)
+                    p_bat_w = -charge_w
+                    effective_command = CzechCommand.CHARGE_PV
+                    effective_reason = CzechReason.PV_SURPLUS
+                else:
+                    # Battery is full (100%) - sell solar surplus to grid if price is positive
+                    p_bat_w = 0.0
+                    if price_czk_kwh >= 0:
+                        effective_command = CzechCommand.SELL_PV
+                        effective_reason = CzechReason.SELL_SURPLUS
+                    else:
+                        effective_command = CzechCommand.STANDBY
+                        effective_reason = "Omezení přetoků: záporná výkupní cena"
             else:
                 effective_command = CzechCommand.STANDBY
                 effective_reason = (
@@ -161,13 +171,28 @@ class FoxEssBatterySimulator:
                 p_bat_w = -actual_w
                 effective_reason = CzechReason.PV_SURPLUS
             else:
-                effective_command = CzechCommand.STANDBY
-                effective_reason = (
-                    CzechReason.BATTERY_PROTECT_MAX
-                    if headroom_charge_kwh <= 0.01
-                    else "Nedostatek sluneční výroby"
-                )
+                # Battery full (100%) - if price >= 0, sell solar surplus to grid!
                 p_bat_w = 0.0
+                if headroom_charge_kwh <= 0.01 and price_czk_kwh >= 0:
+                    effective_command = CzechCommand.SELL_PV
+                    effective_reason = CzechReason.SELL_SURPLUS
+                else:
+                    effective_command = CzechCommand.STANDBY
+                    effective_reason = (
+                        CzechReason.BATTERY_PROTECT_MAX
+                        if headroom_charge_kwh <= 0.01
+                        else "Nedostatek sluneční výroby"
+                    )
+
+        elif command == CzechCommand.SELL_PV:
+            # Direct solar export to grid when battery is already full
+            p_bat_w = 0.0
+            if price_czk_kwh >= 0:
+                effective_command = CzechCommand.SELL_PV
+                effective_reason = CzechReason.SELL_SURPLUS
+            else:
+                effective_command = CzechCommand.STANDBY
+                effective_reason = "Omezení přetoků: záporná výkupní cena"
 
         else:  # STANDBY or idle
             effective_command = CzechCommand.STANDBY

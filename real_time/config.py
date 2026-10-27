@@ -96,6 +96,7 @@ class CzechCommand:
     DISCHARGE_GRID = "Vybíjet do sítě"
     COVER_HOME = "Pokrytí spotřeby domu"
     CHARGE_PV = "Nabíjet z FVE"
+    SELL_PV = "Prodej do sítě"
     STANDBY = "Nečinnost"
 
 class CzechReason:
@@ -103,6 +104,7 @@ class CzechReason:
     HIGH_PRICE = "Vysoká cena (arbitrážní prodej do sítě)"
     HOME_SAVING = "Úspora nákupu (pokrytí domácí spotřeby)"
     PV_SURPLUS = "Ukládání přebytku sluneční výroby"
+    SELL_SURPLUS = "Baterie je plná (100%), prodej přebytku FVE do sítě"
     BATTERY_PROTECT_MIN = "Ochrana baterie: dosažen limit vybití (SoC 20%)"
     BATTERY_PROTECT_MAX = "Ochrana baterie: plně nabito (SoC 100%)"
     STANDBY_SCHEDULE = "Udržování kapacity pro dražší večerní hodiny"

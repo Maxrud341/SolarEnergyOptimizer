@@ -148,12 +148,17 @@ class RealTimeController:
                 target_power_w = 0.0
                 reason = CzechReason.BATTERY_PROTECT_MIN
 
-        # 3. Battery Protection Ceiling: if SoC >= 99.8%, block charge
+        # 3. Battery Protection Ceiling: if SoC >= 99.8%, block further charging
         if command in (CzechCommand.CHARGE_GRID, CzechCommand.CHARGE_PV):
             if self.battery_sim.soc >= (SOC_MAX * 100.0 - 0.2):
-                command = CzechCommand.STANDBY
-                target_power_w = 0.0
-                reason = CzechReason.BATTERY_PROTECT_MAX
+                if p_pv_w > p_home_w and price_czk >= 0:
+                    command = CzechCommand.SELL_PV
+                    target_power_w = p_pv_w - p_home_w
+                    reason = CzechReason.SELL_SURPLUS
+                else:
+                    command = CzechCommand.STANDBY
+                    target_power_w = 0.0
+                    reason = CzechReason.BATTERY_PROTECT_MAX
 
         # Execute simulation step with dynamic dt
         step_result = self.battery_sim.step(
@@ -166,9 +171,14 @@ class RealTimeController:
         )
 
         time_str = current_time_dt.strftime("%d.%m.%Y %H:%M:%S")
+        if step_result.effective_command == CzechCommand.SELL_PV:
+            cmd_power_w = int(max(0.0, step_result.p_grid_w))
+        else:
+            cmd_power_w = abs(int(step_result.p_bat_w))
+
         command_payload = {
             "prikaz": step_result.effective_command,
-            "vykon_w": abs(int(step_result.p_bat_w)),
+            "vykon_w": cmd_power_w,
             "duvod": step_result.effective_reason or reason,
             "sim_soc": step_result.new_sim_soc,
             "cas": time_str,
