@@ -38,7 +38,7 @@ real_time/
 ## 🚀 Инструкция по запуску
 
 ### 1. Запуск сервиса в боевом режиме (Live MQTT)
-Слушает топик `FVE/Maly_TX` на брокере `cassandra2.tul.cz`, пересчитывает симуляцию батареи, пишет в SQLite и отправляет чешские команды в `FVE/Maly_RX`:
+Слушает топик `FVE/Maly_TX` на брокере `cassandra2.tul.cz`, пересчитывает симуляцию батареи, пишет в SQLite и отправляет чешские команды в `FVE/Simulated_RX`:
 ```bash
 python -m real_time.mqtt_service
 ```

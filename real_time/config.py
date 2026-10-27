@@ -70,7 +70,7 @@ MQTT_USERNAME: str | None = os.getenv("MQTT_USERNAME") or None
 MQTT_PASSWORD: str | None = os.getenv("MQTT_PASSWORD") or None
 
 MQTT_TOPIC_TX: str = os.getenv("MQTT_TOPIC_TX", "FVE/Maly_TX")  # Incoming telemetry
-MQTT_TOPIC_RX: str = os.getenv("MQTT_TOPIC_RX", "FVE/Maly_RX")  # Outgoing inverter commands
+MQTT_TOPIC_RX: str = os.getenv("MQTT_TOPIC_RX", "FVE/Simulated_RX")  # Outgoing inverter commands
 MQTT_KEEPALIVE_SEC: int = 60
 
 

@@ -2,7 +2,7 @@
 
 Subscribes to incoming telemetry on FVE/Maly_TX (cassandra2.tul.cz),
 runs dynamic battery simulation with exact delta t integration,
-dispatches optimal arbitrage commands in Czech JSON to FVE/Maly_RX,
+dispatches optimal arbitrage commands in Czech JSON to FVE/Simulated_RX,
 safeguards against communication dropouts via a dedicated Watchdog thread,
 and records telemetry into SQLite (telemetry.db).
 Supports --mock mode for offline testing.
@@ -228,7 +228,7 @@ class MQTTRealtimeService:
                 dt_seconds=dt_seconds,
             )
 
-            # 4. Publish Czech JSON command to FVE/Maly_RX
+            # 4. Publish Czech JSON command to FVE/Simulated_RX
             cmd_json = json.dumps(cmd_payload, ensure_ascii=False)
             if not self.mock_mode:
                 self.client.publish(self.topic_rx, cmd_json, qos=1)
