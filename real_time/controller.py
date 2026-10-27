@@ -133,15 +133,32 @@ class RealTimeController:
             reason = CzechReason.HOME_SAVING
 
         # Real-Time closed-loop safety and local feedback:
-        # 1. If solar PV generation exceeds home consumption in the 2-minute measurement,
+        # 1. Closed-loop Battery First: If house consumption exceeds solar generation,
+        # prioritize discharging battery to cover house load deficit and prevent expensive grid buy,
+        # unless an explicit grid charge (negative price) or arbitrage export is active.
+        if p_home_w > p_pv_w and command not in (CzechCommand.CHARGE_GRID, CzechCommand.DISCHARGE_GRID):
+            if self.battery_sim.soc > (SOC_MIN * 100.0 + 0.1):
+                command = CzechCommand.COVER_HOME
+                target_power_w = p_home_w - p_pv_w
+                reason = CzechReason.HOME_SAVING
+
+        # 2. If solar PV generation exceeds home consumption in the 2-minute measurement,
         # prioritize storing local solar surplus in battery over grid actions
-        if p_pv_w > p_home_w and command != CzechCommand.DISCHARGE_GRID:
+        elif p_pv_w > p_home_w and command != CzechCommand.DISCHARGE_GRID:
             if self.battery_sim.soc < (SOC_MAX * 100.0 - 0.5):
                 command = CzechCommand.CHARGE_PV
                 target_power_w = p_pv_w - p_home_w
                 reason = CzechReason.PV_SURPLUS
+            elif price_czk >= 0:
+                command = CzechCommand.SELL_PV
+                target_power_w = p_pv_w - p_home_w
+                reason = CzechReason.SELL_SURPLUS
+            else:
+                command = CzechCommand.STANDBY
+                target_power_w = 0.0
+                reason = CzechReason.BATTERY_PROTECT_MAX
 
-        # 2. Battery Protection Floor: if SoC <= 20.0%, block discharge
+        # 3. Battery Protection Floor: if SoC <= 20.0%, block discharge
         if command in (CzechCommand.DISCHARGE_GRID, CzechCommand.COVER_HOME):
             if self.battery_sim.soc <= (SOC_MIN * 100.0 + 0.1):
                 command = CzechCommand.STANDBY

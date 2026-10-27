@@ -148,3 +148,30 @@ def test_realtime_controller_decision():
     assert "cas" in cmd_dict
     assert isinstance(cmd_dict["vykon_w"], int)
     assert 20.0 <= cmd_dict["sim_soc"] <= 100.0
+
+
+def test_battery_first_closed_loop_when_home_exceeds_pv():
+    """Verify that if house load suddenly spikes above solar PV, the battery immediately discharges
+
+    to cover the deficit (Battery First / Zero Grid Buy) even if the static plan had planned charging.
+    """
+    controller = RealTimeController(initial_soc=100.0)
+
+    # 14:53 scenario: Home spikes to 5200W, Solar is 4500W (deficit 700W), battery is 100%
+    now_dt = dt.datetime(2026, 10, 27, 14, 53, 0)
+    cmd_dict, step_res = controller.decide_tick_action(
+        current_time_dt=now_dt,
+        price_czk=3.68,
+        p_home_w=5200.0,
+        p_pv_w=4500.0,
+        real_soc=100.0,
+        dt_seconds=30.0,
+    )
+
+    # Must prioritize COVER_HOME to protect against grid buy
+    assert cmd_dict["prikaz"] == CzechCommand.COVER_HOME
+    assert cmd_dict["duvod"] == CzechReason.HOME_SAVING
+    assert abs(cmd_dict["vykon_w"] - 700) <= 2  # Discharges exactly the 700W deficit
+    assert step_res.p_bat_w > 0.0  # Positive = battery discharge
+    assert abs(step_res.p_grid_w) < 1.0  # Zero grid purchase!
+
