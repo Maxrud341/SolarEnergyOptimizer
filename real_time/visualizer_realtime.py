@@ -556,10 +556,10 @@ fig = make_subplots(
     vertical_spacing=0.08,
     subplot_titles=(
         "<b>⚡ Výkon energetických toků (kW) a kapacita baterie (kWh)</b>",
-        "<b>💰 Tržní spotové ceny OTE a finanční bilance (CZK)</b>",
+        "<b>💰 Tržní spotové ceny OTE (CZK/kWh) a finanční bilance kroku (CZK)</b>",
     ),
     row_heights=[0.58, 0.42],
-    specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
+    specs=[[{"secondary_y": True}], [{"secondary_y": True}]],
 )
 
 times = plot_df["dt"]
@@ -725,7 +725,7 @@ if show_breakdown_costs:
         col=1,
     )
 
-# Step Net Profit / Balance (Green/Red Bar Chart)
+# Step Net Profit / Balance (Green/Red Bar Chart on Secondary Y-Axis for high visibility)
 bar_colors = ["#22c55e" if (pd.notna(val) and val >= 0) else "#ef4444" for val in plot_df["net_profit_czk"]]
 fig.add_trace(
     go.Bar(
@@ -733,11 +733,12 @@ fig.add_trace(
         y=plot_df["net_profit_czk"],
         name="Kroková bilance (CZK)",
         marker_color=bar_colors,
-        opacity=0.6,
-        hovertemplate="Výsledek kroku: %{y:+.3f} CZK<extra></extra>",
+        opacity=0.75,
+        hovertemplate="Bilance kroku: %{y:+.3f} CZK<extra></extra>",
     ),
     row=2,
     col=1,
+    secondary_y=True,
 )
 
 # Zero line on financial plot
@@ -818,11 +819,23 @@ if show_soc:
     )
 
 fig.update_yaxes(
-    title_text="Cena / Bilance (CZK)",
+    title_text="Cena elektřiny OTE (CZK/kWh)",
     gridcolor="#1e293b",
     zerolinecolor="#334155",
     row=2,
     col=1,
+    secondary_y=False,
+)
+
+fig.update_yaxes(
+    title_text="Bilance kroku (CZK)",
+    gridcolor="rgba(0,0,0,0)",
+    zeroline=True,
+    zerolinecolor="#64748b",
+    zerolinewidth=1,
+    row=2,
+    col=1,
+    secondary_y=True,
 )
 
 try:
