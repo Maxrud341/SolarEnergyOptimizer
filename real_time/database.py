@@ -244,19 +244,38 @@ def get_recent_ticks(limit: int = 300) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def get_today_ticks() -> pd.DataFrame:
-    """Fetch all ticks recorded for today's date."""
-    today_str = dt.datetime.now().strftime("%d.%m.%Y")
+def get_all_recorded_dates() -> list[str]:
+    """Return all distinct date strings present in telemetry_ticks."""
+    try:
+        with get_db_connection() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT date_str FROM telemetry_ticks ORDER BY id ASC;"
+            ).fetchall()
+            return [r["date_str"] for r in rows if r["date_str"]]
+    except Exception as exc:
+        print(f"[DB Error] Could not fetch distinct dates: {exc}")
+        return []
+
+
+def get_ticks_for_date(date_str: str) -> pd.DataFrame:
+    """Fetch all ticks recorded for a specific date (e.g. '27.10.2026')."""
     try:
         with get_db_connection() as conn:
             df = pd.read_sql_query(
                 "SELECT * FROM telemetry_ticks WHERE date_str = ? ORDER BY id ASC;",
                 conn,
-                params=(today_str,),
+                params=(date_str,),
             )
             return df
-    except Exception:
+    except Exception as exc:
+        print(f"[DB Error] Failed to read ticks for date {date_str}: {exc}")
         return pd.DataFrame()
+
+
+def get_today_ticks() -> pd.DataFrame:
+    """Fetch all ticks recorded for today's date."""
+    today_str = dt.datetime.now().strftime("%d.%m.%Y")
+    return get_ticks_for_date(today_str)
 
 
 def enforce_db_size_limit(max_bytes: int = MAX_DB_SIZE_BYTES) -> None:

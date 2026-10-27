@@ -1,8 +1,12 @@
-"""Interactive Real-Time Streamlit Web Dashboard for Live MQTT Telemetry.
+"""Interactive Streamlit Web Dashboard for Real-Time FVE & Battery Arbitrage.
 
-Reads live ticks from SQLite (telemetry.db), displays a real-time status indicator
-(🟢 ONLINE / 🟡 ZPOŽDĚNÍ / 🔴 OFFLINE), animated KPI cards, synchronized Plotly
-charts of power flows and spot prices, and live inverter command log.
+Features identical to visualizer_web.py:
+- Day & Month navigation: [< Previous Day], [Next Day >], Calendar DatePicker, Month Quick Jump
+- Clear handling of days without data with shaded gap annotations (⚠️ Žádná data)
+- 5 Standard Daily KPI cards (Net Profit, Home Load, Solar Generation, B2G Export, Battery Cycles)
+- 2 Synchronized Plotly subplots with unified crosshair hover (Energy Balance & Spot Market/Finance)
+- Live Real-Time Header with Pulse Status (🟢 ONLINE / 🟡 ZPOŽDĚNÍ / 🔴 OFFLINE)
+- Toggleable series via sidebar (SoC, phases, cost breakdown)
 
 Run directly via:
     python real_time/visualizer_realtime.py
@@ -22,6 +26,7 @@ if __name__ == "__main__" and "streamlit" not in sys.modules and not os.environ.
     cmd = [sys.executable, "-m", "streamlit", "run", __file__] + sys.argv[1:]
     sys.exit(subprocess.call(cmd))
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -40,6 +45,8 @@ try:
         BATTERY_CAPACITY_KWH,
         BATTERY_POWER_MAX_KW,
         DB_PATH,
+        EXPORT_FEE_CZK_PER_KWH,
+        IMPORT_FEE_CZK_PER_KWH,
         MAX_DB_SIZE_BYTES,
         MQTT_BROKER_HOST,
         MQTT_BROKER_PORT,
@@ -47,12 +54,13 @@ try:
         MQTT_TOPIC_TX,
         SOC_MAX,
         SOC_MIN,
+        VAT_RATE,
         WATCHDOG_TIMEOUT_SEC,
     )
     from real_time.database import (
+        get_all_recorded_dates,
         get_latest_tick,
-        get_recent_ticks,
-        get_today_ticks,
+        get_ticks_for_date,
         init_db,
     )
 except ImportError:
@@ -60,6 +68,8 @@ except ImportError:
         BATTERY_CAPACITY_KWH,
         BATTERY_POWER_MAX_KW,
         DB_PATH,
+        EXPORT_FEE_CZK_PER_KWH,
+        IMPORT_FEE_CZK_PER_KWH,
         MAX_DB_SIZE_BYTES,
         MQTT_BROKER_HOST,
         MQTT_BROKER_PORT,
@@ -67,21 +77,22 @@ except ImportError:
         MQTT_TOPIC_TX,
         SOC_MAX,
         SOC_MIN,
+        VAT_RATE,
         WATCHDOG_TIMEOUT_SEC,
     )
     from database import (
+        get_all_recorded_dates,
         get_latest_tick,
-        get_recent_ticks,
-        get_today_ticks,
+        get_ticks_for_date,
         init_db,
     )
 
 # =====================================================================
-# 1. Page Configuration & Microgrid Dark Styling
+# 1. Page Configuration & Microgrid Dark Theme (Identical to visualizer_web.py)
 # =====================================================================
 
 st.set_page_config(
-    page_title="Živý Dispečink FVE | Real-Time MQTT",
+    page_title="Optimalizátor FVE & Baterie | Arbitráž",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -90,7 +101,7 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* Dark microgrid control center theme matching visualizer_web.py */
+    /* Dark microgrid control center theme */
     .stApp {
         background-color: #0b1120;
         color: #f1f5f9;
@@ -100,33 +111,47 @@ st.markdown(
         padding-top: 1.2rem;
         padding-bottom: 2rem;
     }
-    /* Metric cards */
+    /* Metric card styling */
     div[data-testid="stMetric"] {
         background-color: #1e293b;
         border: 1px solid #334155;
         padding: 0.8rem 1.1rem;
         border-radius: 10px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
     }
     div[data-testid="stMetricLabel"] p {
         color: #94a3b8 !important;
         font-weight: 500 !important;
-        font-size: 0.82rem !important;
+        font-size: 0.85rem !important;
     }
     div[data-testid="stMetricValue"] div {
         color: #f8fafc !important;
         font-weight: 700 !important;
-        font-size: 1.35rem !important;
+        font-size: 1.4rem !important;
     }
-    /* Status banner pill */
+    /* Buttons */
+    .stButton>button {
+        width: 100%;
+        border-radius: 8px;
+        background-color: #1e293b;
+        color: #f8fafc;
+        border: 1px solid #475569;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .stButton>button:hover {
+        background-color: #334155;
+        border-color: #38bdf8;
+        color: #38bdf8;
+    }
+    /* Live Status Pill */
     .status-pill {
         display: inline-block;
-        padding: 0.4rem 1.0rem;
+        padding: 0.35rem 0.9rem;
         border-radius: 20px;
         font-weight: 700;
-        font-size: 0.95rem;
+        font-size: 0.90rem;
         letter-spacing: 0.5px;
-        margin-bottom: 0.5rem;
     }
     .status-online {
         background-color: rgba(16, 185, 129, 0.2);
@@ -150,9 +175,48 @@ st.markdown(
 
 init_db()
 
+# Czech month names dictionary for UI display
+CZECH_MONTHS = {
+    1: "Leden",
+    2: "Únor",
+    3: "Březen",
+    4: "Duben",
+    5: "Květen",
+    6: "Červen",
+    7: "Červenec",
+    8: "Srpen",
+    9: "Září",
+    10: "Říjen",
+    11: "Listopad",
+    12: "Prosinec",
+}
+
+
+def format_month_label(month_str: str) -> str:
+    """Format 'YYYY-MM' into Czech label, e.g. 'Říjen 2026 (2026-10)'."""
+    try:
+        parts = month_str.split("-")
+        year = int(parts[0])
+        month = int(parts[1])
+        name = CZECH_MONTHS.get(month, "")
+        return f"{name} {year} ({month_str})"
+    except Exception:
+        return month_str
+
+
+def find_target_date_in_month(target_month: str, preferred_day_num: int, month_to_dates: dict[str, list[str]]) -> str:
+    """Find matching or closest date in target month preserving day of month."""
+    dates_in_m = month_to_dates.get(target_month, [])
+    if not dates_in_m:
+        return ""
+    exact_candidate = f"{target_month}-{preferred_day_num:02d}"
+    if exact_candidate in dates_in_m:
+        return exact_candidate
+    return min(dates_in_m, key=lambda d: abs(int(d.split("-")[2]) - preferred_day_num))
+
 
 # =====================================================================
-# 2. Sidebar Information & Diagnostics
+# 2. Sidebar: Settings & Series Customization
 # =====================================================================
 
 with st.sidebar:
@@ -163,13 +227,18 @@ with st.sidebar:
         * **Kapacita:** `{BATTERY_CAPACITY_KWH} kWh`
         * **Limity:** `SoC {int(SOC_MIN*100)}% – {int(SOC_MAX*100)}%`
         * **Max. výkon:** `{BATTERY_POWER_MAX_KW} kW`
-        * **MQTT Broker:** `{MQTT_BROKER_HOST}:{MQTT_BROKER_PORT}`
-        * **Inbound TX:** `{MQTT_TOPIC_TX}`
-        * **Outbound RX:** `{MQTT_TOPIC_RX}`
+        * **Broker:** `{MQTT_BROKER_HOST}:{MQTT_BROKER_PORT}`
+        * **Inbound:** `{MQTT_TOPIC_TX}`
+        * **Outbound:** `{MQTT_TOPIC_RX}`
         """
     )
     st.markdown("---")
-    st.markdown("### 💾 Úložiště SQLite (Limit 800 MB)")
+    st.subheader("🎛️ Filtry křivek a zobrazení")
+    show_soc = st.checkbox("Stav nabití baterie (SoC)", value=True)
+    show_breakdown_costs = st.checkbox("Rozpad nákupních/výkupních cen", value=False)
+
+    st.markdown("---")
+    st.markdown("### 💾 Úložiště SQLite")
     if DB_PATH.exists():
         db_size_mb = DB_PATH.stat().st_size / (1024 * 1024)
         pct_used = (DB_PATH.stat().st_size / MAX_DB_SIZE_BYTES) * 100.0
@@ -179,207 +248,549 @@ with st.sidebar:
         st.write("DB zatím nevytvořena.")
 
     st.markdown("---")
-    auto_refresh_sec = st.slider("Interval obnovení stránky (sekundy)", min_value=2, max_value=30, value=5)
-    st.caption("Stránka se automaticky překresluje při každém novém tiku.")
+    auto_refresh_sec = st.slider("Interval živého obnovení (sekundy)", min_value=2, max_value=30, value=5)
+    st.caption("Při zobrazení dnešního dne se data automaticky aktualizují.")
 
 
 # =====================================================================
-# 3. Live Header & Status Indicator
+# 3. Available Dates & Month Discovery
+# =====================================================================
+
+# Get distinct dates from SQLite
+raw_dates = get_all_recorded_dates()
+today_dt = dt.datetime.now()
+today_raw = today_dt.strftime("%d.%m.%Y")
+today_iso = today_dt.strftime("%Y-%m-%d")
+
+# Map DD.MM.YYYY <-> YYYY-MM-DD
+iso_to_raw: dict[str, str] = {}
+for rd in raw_dates:
+    try:
+        iso_str = dt.datetime.strptime(rd, "%d.%m.%Y").strftime("%Y-%m-%d")
+        iso_to_raw[iso_str] = rd
+    except Exception:
+        pass
+
+# Ensure today is present in the list
+if today_iso not in iso_to_raw:
+    iso_to_raw[today_iso] = today_raw
+
+available_dates = sorted(list(iso_to_raw.keys()))
+
+# Group dates by month
+available_months = sorted(list({d[:7] for d in available_dates}))
+month_to_dates: dict[str, list[str]] = {}
+for d in available_dates:
+    month_to_dates.setdefault(d[:7], []).append(d)
+
+# Initialize session state for active date (default to today / latest)
+if "active_date_idx" not in st.session_state:
+    st.session_state.active_date_idx = len(available_dates) - 1
+if st.session_state.active_date_idx >= len(available_dates):
+    st.session_state.active_date_idx = len(available_dates) - 1
+
+current_date_str = available_dates[st.session_state.active_date_idx]
+current_month_str = current_date_str[:7]
+current_month_idx = available_months.index(current_month_str) if current_month_str in available_months else 0
+current_day_num = int(current_date_str.split("-")[2])
+raw_date_query = iso_to_raw.get(current_date_str, today_raw)
+
+
+# =====================================================================
+# 4. Top Header & Live Pulse Status
 # =====================================================================
 
 latest = get_latest_tick()
 now = dt.datetime.now()
 
 status_class = "status-offline"
-status_text = "🔴 OFFLINE / PORUCHA SPOJENÍ (Žádná data v databázi)"
-age_seconds = 9999.0
-
+status_text = "🔴 OFFLINE (Žádná data)"
 if latest:
     try:
         last_dt = dt.datetime.fromisoformat(latest["timestamp"])
         age_seconds = (now - last_dt).total_seconds()
         if age_seconds < 150.0:
             status_class = "status-online"
-            status_text = f"🟢 ONLINE (Poslední telemetrie před {int(age_seconds)} s | {latest['time_str']})"
+            status_text = f"🟢 ONLINE ({int(age_seconds)}s | {latest['time_str']})"
         elif age_seconds < WATCHDOG_TIMEOUT_SEC:
             status_class = "status-warning"
-            status_text = f"🟡 ZPOŽDĚNÍ SPOJENÍ (Čekání na data {int(age_seconds)} s | Poslední: {latest['time_str']})"
+            status_text = f"🟡 ZPOŽDĚNÍ ({int(age_seconds)}s | {latest['time_str']})"
         else:
             status_class = "status-offline"
-            status_text = f"🔴 OFFLINE / WATCHDOG AKTIVNÍ (Výpadek {int(age_seconds/60)} min | Aktivován bezpečný režim)"
+            status_text = f"🔴 OFFLINE (> 5.5 min | Failsafe)"
     except Exception:
         pass
 
-col_title, col_stat = st.columns([2, 1])
-with col_title:
-    st.title("⚡ Živý Dispečink FVE a Baterie")
-    st.caption("Reálný čas: autonomní řízení střídače Fox-ESS, spotový trh OTE ČR a ochrana sítě")
-
-with col_stat:
-    st.markdown(f'<div style="text-align: right;"><span class="status-pill {status_class}">{status_text}</span></div>', unsafe_allow_html=True)
+head_col1, head_col2 = st.columns([3, 1])
+with head_col1:
+    st.title("⚡ Vizualizátor komerční arbitráže FVE & Baterie")
+with head_col2:
+    st.markdown(f'<div style="text-align: right; padding-top: 15px;"><span class="status-pill {status_class}">{status_text}</span></div>', unsafe_allow_html=True)
 
 
 # =====================================================================
-# 4. KPI Top Metrics
+# 5. Month & Day Navigation (Exact visualizer_web.py structure)
 # =====================================================================
 
-m1, m2, m3, m4, m5 = st.columns(5)
+# --- Row 1: Month Navigation ---
+m_col1, m_col2, m_col3, m_col4 = st.columns([1.5, 3, 1.5, 4])
 
-if latest:
-    cmd_name = latest["command"]
-    cmd_pwr = latest["power_w"]
-    price = latest["price_czk"]
-    p_home = latest["p_home_w"]
-    p_pv = latest["p_pv_w"]
-    sim_soc = latest["sim_soc"]
-    real_soc = latest["real_soc"]
+with m_col1:
+    prev_m_disabled = (current_month_idx <= 0)
+    if st.button("⏮️ Předchozí měsíc", use_container_width=True, disabled=prev_m_disabled):
+        target_month = available_months[current_month_idx - 1]
+        target_date = find_target_date_in_month(target_month, current_day_num, month_to_dates)
+        if target_date in available_dates:
+            st.session_state.active_date_idx = available_dates.index(target_date)
+            st.rerun()
 
-    # Compute today's profit sum
-    today_df = get_today_ticks()
-    today_profit = today_df["profit_step_czk"].sum() if not today_df.empty else 0.0
+with m_col3:
+    next_m_disabled = (current_month_idx >= len(available_months) - 1)
+    if st.button("Následující měsíc ⏭️", use_container_width=True, disabled=next_m_disabled):
+        target_month = available_months[current_month_idx + 1]
+        target_date = find_target_date_in_month(target_month, current_day_num, month_to_dates)
+        if target_date in available_dates:
+            st.session_state.active_date_idx = available_dates.index(target_date)
+            st.rerun()
 
-    m1.metric("Aktuální Příkaz", f"{cmd_name}", f"{int(cmd_pwr)} W")
-    m2.metric("Simulovaný SoC", f"{sim_soc:.1f} %", f"Fyzický: {real_soc:.0f}%")
-    m3.metric("Spotová Cena OTE", f"{price:.2f} CZK/kWh", f"{'Záporná/Nízká' if price < 2.0 else ('Vysoká špička' if price > 5.0 else 'Běžná')}")
-    m4.metric("Spotřeba Domu / FVE", f"{int(p_home)} W", f"FVE: {int(p_pv)} W")
-    profit_delta = f"{'+' if today_profit >= 0 else ''}{today_profit:.2f} CZK"
-    m5.metric("Dnešní Arbitrážní Bilance", profit_delta, "Čistý zisk za dnešek")
-else:
-    m1.metric("Aktuální Příkaz", "Čekání na data", "-")
-    m2.metric("Simulovaný SoC", "50.0 %", "-")
-    m3.metric("Spotová Cena OTE", "- CZK/kWh", "-")
-    m4.metric("Spotřeba Domu / FVE", "- W", "-")
-    m5.metric("Dnešní Arbitrážní Bilance", "0.00 CZK", "-")
+with m_col2:
+    selected_month = st.selectbox(
+        "Výběr měsíce",
+        available_months,
+        index=current_month_idx,
+        format_func=format_month_label,
+        label_visibility="collapsed",
+    )
+    if selected_month != current_month_str:
+        target_date = find_target_date_in_month(selected_month, current_day_num, month_to_dates)
+        if target_date in available_dates:
+            st.session_state.active_date_idx = available_dates.index(target_date)
+            st.rerun()
+
+with m_col4:
+    total_months = len(available_months)
+    days_in_month = len(month_to_dates.get(current_month_str, []))
+    month_czech_name = format_month_label(current_month_str)
+    st.markdown(
+        f"<div style='padding-top: 6px; color: #94a3b8; font-size: 0.95rem;'>"
+        f"🗓️ Měsíc <b>{current_month_idx + 1}</b> z <b>{total_months}</b> "
+        f"• <span style='color: #a78bfa; font-weight: bold;'>{month_czech_name}</span> "
+        f"<span style='color: #64748b;'>({days_in_month} dní v databázi)</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+# --- Row 2: Day Navigation ---
+nav_col1, nav_col2, nav_col3, nav_col4 = st.columns([1.5, 3, 1.5, 4])
+
+with nav_col1:
+    prev_d_disabled = (st.session_state.active_date_idx <= 0)
+    if st.button("⬅️ Předchozí den", use_container_width=True, disabled=prev_d_disabled):
+        if st.session_state.active_date_idx > 0:
+            st.session_state.active_date_idx -= 1
+            st.rerun()
+
+with nav_col3:
+    next_d_disabled = (st.session_state.active_date_idx >= len(available_dates) - 1)
+    if st.button("Následující den ➡️", use_container_width=True, disabled=next_d_disabled):
+        if st.session_state.active_date_idx < len(available_dates) - 1:
+            st.session_state.active_date_idx += 1
+            st.rerun()
+
+current_date_obj = pd.to_datetime(current_date_str).date()
+
+with nav_col2:
+    selected_date = st.date_input(
+        "Výběr data",
+        value=current_date_obj,
+        min_value=pd.to_datetime(available_dates[0]).date(),
+        max_value=pd.to_datetime(available_dates[-1]).date(),
+        label_visibility="collapsed",
+    )
+    selected_date_str = selected_date.strftime("%Y-%m-%d")
+    if selected_date_str in available_dates:
+        new_idx = available_dates.index(selected_date_str)
+        if new_idx != st.session_state.active_date_idx:
+            st.session_state.active_date_idx = new_idx
+            st.rerun()
+    else:
+        closest_idx = min(range(len(available_dates)), key=lambda i: abs((pd.to_datetime(available_dates[i]).date() - selected_date).days))
+        if closest_idx != st.session_state.active_date_idx:
+            st.session_state.active_date_idx = closest_idx
+            st.rerun()
+
+with nav_col4:
+    total_days = len(available_dates)
+    dates_in_curr_month = month_to_dates.get(current_month_str, [])
+    day_in_month_idx = dates_in_curr_month.index(current_date_str) + 1 if current_date_str in dates_in_curr_month else 1
+    is_today_badge = " (Dnes - Živý přenos ⚡)" if current_date_str == today_iso else ""
+    st.markdown(
+        f"<div style='padding-top: 6px; color: #94a3b8; font-size: 0.95rem;'>"
+        f"📅 Den <b>{st.session_state.active_date_idx + 1}</b> z <b>{total_days}</b> "
+        f"• Vybráno: <span style='color: #38bdf8; font-weight: bold;'>{current_date_str}</span> "
+        f"<span style='color: #64748b;'>({day_in_month_idx}. v měsíci){is_today_badge}</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # =====================================================================
-# 5. Interactive Real-Time Plotly Charts
+# 6. Data Fetching & Handling Days Without Data
 # =====================================================================
 
-ticks_df = get_recent_ticks(limit=180)  # last ~6 hours of 2-minute ticks
+day_ticks = get_ticks_for_date(raw_date_query)
 
-if not ticks_df.empty:
-    ticks_df["dt"] = pd.to_datetime(ticks_df["timestamp"], format="mixed", errors="coerce")
-
-    fig = make_subplots(
-        rows=2,
-        cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.08,
-        row_heights=[0.60, 0.40],
-        specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
-        subplot_titles=("Okamžité Toky Výkonu (W) a Stav Baterie (%)", "Spotová Cena OTE ČR (CZK/kWh) a Příkazy"),
+if day_ticks.empty:
+    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+    st.warning(
+        f"⚠️ **Tento den ({current_date_str}) neobsahuje žádná telemetrická data** (bez záznamu z invertoru). "
+        f"Tyto hodiny nejsou započítávány do nákladů ani do bilance."
     )
 
-    # Subplot 1: Power flows & Battery SoC
+    # Empty KPI placeholders matching theme
+    kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+    kpi1.metric("💰 Čistý denní výsledek", "0.00 CZK", "-")
+    kpi2.metric("🏠 Spotřeba domu", "0.00 kWh", "Nákup ze sítě: 0.00 kWh")
+    kpi3.metric("☀️ Výroba FVE", "0.00 kWh", "Bez výroby")
+    kpi4.metric("⚡ Prodej do sítě (B2G)", "0.00 kWh", "Export na spot")
+    kpi5.metric("🔋 Využití baterie", "0.00 cyklu", "Vybito: 0.00 kWh")
+
+    # Stop rendering further for empty day
+    st.stop()
+
+
+# =====================================================================
+# 7. Energy Calculation & Daily KPIs (Identical to visualizer_web.py)
+# =====================================================================
+
+day_ticks["dt"] = pd.to_datetime(day_ticks["timestamp"], format="mixed", errors="coerce")
+day_ticks = day_ticks.dropna(subset=["dt"]).sort_values("dt").reset_index(drop=True)
+
+# Convert power (W) and step duration (s) to energy (kWh)
+day_ticks["dt_hours"] = day_ticks["dt_seconds"] / 3600.0
+day_ticks["load_kwh"] = (day_ticks["p_home_w"] / 1000.0) * day_ticks["dt_hours"]
+day_ticks["pv_kwh"] = (day_ticks["p_pv_w"] / 1000.0) * day_ticks["dt_hours"]
+
+day_ticks["charge_kwh"] = day_ticks["p_bat_w"].apply(lambda p: abs(p) if p < 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
+day_ticks["discharge_kwh"] = day_ticks["p_bat_w"].apply(lambda p: p if p > 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
+
+day_ticks["buy_kwh"] = day_ticks["p_grid_w"].apply(lambda p: abs(p) if p < 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
+day_ticks["sell_kwh"] = day_ticks["p_grid_w"].apply(lambda p: p if p > 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
+
+day_ticks["soc_kwh"] = (day_ticks["sim_soc"] / 100.0) * BATTERY_CAPACITY_KWH
+day_ticks["spot_price_czk"] = day_ticks["price_czk"]
+day_ticks["p_buy"] = (day_ticks["price_czk"] + IMPORT_FEE_CZK_PER_KWH) * (1.0 + VAT_RATE)
+day_ticks["p_sell"] = day_ticks["price_czk"] - EXPORT_FEE_CZK_PER_KWH
+day_ticks["net_profit_czk"] = day_ticks["profit_step_czk"]
+
+# Sums
+load_sum = float(day_ticks["load_kwh"].sum())
+pv_sum = float(day_ticks["pv_kwh"].sum())
+buy_sum = float(day_ticks["buy_kwh"].sum())
+sell_sum = float(day_ticks["sell_kwh"].sum())
+dis_sum = float(day_ticks["discharge_kwh"].sum())
+cycles = dis_sum / 8.192  # Fox-ESS HV2600 HS10.4: 10.24 kWh * 0.80 usable
+profit_sum = float(day_ticks["net_profit_czk"].sum())
+
+# 5 Top KPI Cards
+kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+with kpi1:
+    delta_str = "Zisk" if profit_sum >= 0 else "Náklad"
+    st.metric("💰 Čistý denní výsledek", f"{profit_sum:+.2f} CZK", delta=f"{delta_str}")
+with kpi2:
+    st.metric("🏠 Spotřeba domu", f"{load_sum:.2f} kWh", delta=f"Nákup ze sítě: {buy_sum:.2f} kWh", delta_color="inverse")
+with kpi3:
+    st.metric("☀️ Výroba FVE", f"{pv_sum:.2f} kWh", delta="100% využito bez omezení")
+with kpi4:
+    st.metric("⚡ Prodej do sítě (B2G)", f"{sell_sum:.2f} kWh", delta="Export na spot")
+with kpi5:
+    st.metric("🔋 Využití baterie", f"{cycles:.2f} cyklu", delta=f"Vybito: {dis_sum:.2f} kWh")
+
+st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+
+
+# =====================================================================
+# 8. Synchronized Plotly Subplots (Exact visualizer_web.py graphics)
+# =====================================================================
+
+fig = make_subplots(
+    rows=2,
+    cols=1,
+    shared_xaxes=True,
+    vertical_spacing=0.08,
+    subplot_titles=(
+        "<b>⚡ Energetická bilance a baterie (kWh)</b>",
+        "<b>💰 Tržní spotové ceny OTE a finanční bilance (CZK)</b>",
+    ),
+    row_heights=[0.58, 0.42],
+    specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
+)
+
+times = day_ticks["dt"]
+
+# -------------------------------------------------------------
+# SUBPLOT 1: ENERGY BALANCE (kWh)
+# -------------------------------------------------------------
+
+# 1. Solar PV - Amber Gold
+fig.add_trace(
+    go.Scatter(
+        x=times,
+        y=day_ticks["pv_kwh"],
+        name="Výroba FVE",
+        line=dict(color="#eab308", width=2.5),
+        fill="tozeroy",
+        fillcolor="rgba(234, 179, 8, 0.12)",
+        hovertemplate="FVE: %{y:.3f} kWh<extra></extra>",
+    ),
+    row=1,
+    col=1,
+    secondary_y=False,
+)
+
+# 2. House Load - Strong Blue
+fig.add_trace(
+    go.Scatter(
+        x=times,
+        y=day_ticks["load_kwh"],
+        name="Spotřeba domu",
+        line=dict(color="#0284c7", width=2.5),
+        hovertemplate="Dům: %{y:.3f} kWh<extra></extra>",
+    ),
+    row=1,
+    col=1,
+    secondary_y=False,
+)
+
+# 3. Battery Charge - Emerald Green
+fig.add_trace(
+    go.Scatter(
+        x=times,
+        y=day_ticks["charge_kwh"],
+        name="Nabíjení baterie",
+        line=dict(color="#10b981", width=2.0),
+        hovertemplate="Nabíjení: %{y:.3f} kWh<extra></extra>",
+    ),
+    row=1,
+    col=1,
+    secondary_y=False,
+)
+
+# 4. Battery Discharge - Violet Purple
+fig.add_trace(
+    go.Scatter(
+        x=times,
+        y=day_ticks["discharge_kwh"],
+        name="Vybíjení baterie",
+        line=dict(color="#8b5cf6", width=2.2),
+        hovertemplate="Vybíjení: %{y:.3f} kWh<extra></extra>",
+    ),
+    row=1,
+    col=1,
+    secondary_y=False,
+)
+
+# 5. Grid Buy - Crimson Red
+fig.add_trace(
+    go.Scatter(
+        x=times,
+        y=day_ticks["buy_kwh"],
+        name="Nákup ze sítě",
+        line=dict(color="#ef4444", width=1.8),
+        hovertemplate="Nákup: %{y:.3f} kWh<extra></extra>",
+    ),
+    row=1,
+    col=1,
+    secondary_y=False,
+)
+
+# 6. Grid Sell (B2G Export) - Hot Pink / Magenta
+fig.add_trace(
+    go.Scatter(
+        x=times,
+        y=day_ticks["sell_kwh"],
+        name="Prodej do sítě (B2G)",
+        line=dict(color="#ec4899", width=2.5),
+        hovertemplate="Prodej: %{y:.3f} kWh<extra></extra>",
+    ),
+    row=1,
+    col=1,
+    secondary_y=False,
+)
+
+# 7. Battery SoC (Secondary Y-axis, 0 - 10.5 kWh) - Silver Platinum
+if show_soc:
     fig.add_trace(
         go.Scatter(
-            x=ticks_df["dt"],
-            y=ticks_df["p_home_w"],
-            name="Spotřeba Domu (W)",
-            line=dict(color="#fb923c", width=2),
-            hovertemplate="%{y:.0f} W",
-        ),
-        row=1,
-        col=1,
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=ticks_df["dt"],
-            y=ticks_df["p_pv_w"],
-            name="Výroba FVE (W)",
-            line=dict(color="#facc15", width=2),
-            fill="tozeroy",
-            fillcolor="rgba(250, 204, 21, 0.15)",
-            hovertemplate="%{y:.0f} W",
-        ),
-        row=1,
-        col=1,
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=ticks_df["dt"],
-            y=ticks_df["p_bat_w"],
-            name="Baterie Výkon (W)",
-            line=dict(color="#2dd4bf", width=2.5),
-            hovertemplate="%{y:.0f} W (+ vybíjení, - nabíjení)",
-        ),
-        row=1,
-        col=1,
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=ticks_df["dt"],
-            y=ticks_df["p_grid_w"],
-            name="Síť Import/Export (W)",
-            line=dict(color="#a855f7", width=1.5, dash="dot"),
-            hovertemplate="%{y:.0f} W",
-        ),
-        row=1,
-        col=1,
-        secondary_y=False,
-    )
-    # Secondary Y-axis: SoC (%)
-    fig.add_trace(
-        go.Scatter(
-            x=ticks_df["dt"],
-            y=ticks_df["sim_soc"],
-            name="Simulovaný SoC (%)",
-            line=dict(color="#38bdf8", width=3, dash="dash"),
-            hovertemplate="%{y:.1f} %",
+            x=times,
+            y=day_ticks["soc_kwh"],
+            name="Stav nabití (SoC)",
+            line=dict(color="#cbd5e1", width=2.2, dash="dashdot"),
+            hovertemplate="SoC: %{y:.2f} kWh (%{text:.1f}%)<extra></extra>",
+            text=day_ticks["sim_soc"],
         ),
         row=1,
         col=1,
         secondary_y=True,
     )
 
-    # Subplot 2: Spot Prices & Command Overlay
+# -------------------------------------------------------------
+# SUBPLOT 2: SPOT PRICES & FINANCIALS (CZK)
+# -------------------------------------------------------------
+
+# Spot Price OTE (Gold)
+fig.add_trace(
+    go.Scatter(
+        x=times,
+        y=day_ticks["spot_price_czk"],
+        name="Spot OTE (CZK/kWh)",
+        line=dict(color="#fbbf24", width=2.2),
+        hovertemplate="Spot OTE: %{y:.2f} CZK<extra></extra>",
+    ),
+    row=2,
+    col=1,
+)
+
+# Effective Buy Price
+if show_breakdown_costs:
     fig.add_trace(
         go.Scatter(
-            x=ticks_df["dt"],
-            y=ticks_df["price_czk"],
-            name="Spotová Cena (CZK/kWh)",
-            line=dict(color="#38bdf8", width=2.5),
-            fill="tozeroy",
-            fillcolor="rgba(56, 189, 248, 0.10)",
-            hovertemplate="%{y:.2f} CZK/kWh",
+            x=times,
+            y=day_ticks["p_buy"],
+            name="Nákupní cena (vč. distribuce a DPH)",
+            line=dict(color="#f87171", width=1.5, dash="dot"),
+            hovertemplate="Nákupní cena: %{y:.2f} CZK<extra></extra>",
+        ),
+        row=2,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=times,
+            y=day_ticks["p_sell"],
+            name="Výkupní cena (čistá)",
+            line=dict(color="#34d399", width=1.5, dash="dot"),
+            hovertemplate="Výkupní cena: %{y:.2f} CZK<extra></extra>",
         ),
         row=2,
         col=1,
     )
 
-    # Layout styling matching dark control center
-    fig.update_layout(
-        template="plotly_dark",
-        plot_bgcolor="#0b1120",
-        paper_bgcolor="#0b1120",
-        height=580,
-        margin=dict(l=40, r=40, t=40, b=30),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-        hovermode="x unified",
+# Step Net Profit / Balance (Green/Red Bar Chart)
+bar_colors = ["#22c55e" if val >= 0 else "#ef4444" for val in day_ticks["net_profit_czk"]]
+fig.add_trace(
+    go.Bar(
+        x=times,
+        y=day_ticks["net_profit_czk"],
+        name="Kroková bilance (CZK)",
+        marker_color=bar_colors,
+        opacity=0.6,
+        hovertemplate="Výsledek kroku: %{y:+.3f} CZK<extra></extra>",
+    ),
+    row=2,
+    col=1,
+)
+
+# Zero line on financial plot
+fig.add_hline(y=0, line_dash="dash", line_color="#475569", line_width=1, row=2, col=1)
+
+# Check for gaps > 10 minutes between ticks and highlight them with gray bands
+if len(day_ticks) > 1:
+    dts = day_ticks["dt"].tolist()
+    for i in range(1, len(dts)):
+        gap_sec = (dts[i] - dts[i - 1]).total_seconds()
+        if gap_sec > 600.0:  # gap greater than 10 minutes
+            fig.add_vrect(
+                x0=dts[i - 1],
+                x1=dts[i],
+                fillcolor="rgba(100, 116, 139, 0.14)",
+                line=dict(color="#64748b", width=1.5, dash="dash"),
+                annotation_text="⚠️ Žádná data",
+                annotation_position="inside top",
+                annotation=dict(
+                    font=dict(color="#94a3b8", size=11, family="Segoe UI, sans-serif"),
+                    bgcolor="rgba(15, 23, 42, 0.85)",
+                    bordercolor="#475569",
+                    borderwidth=1,
+                ),
+            )
+
+# Layout styling matching visualizer_web.py
+fig.update_layout(
+    template="plotly_dark",
+    paper_bgcolor="#0b1120",
+    plot_bgcolor="#0f172a",
+    font=dict(family="Segoe UI, Inter, sans-serif", color="#e2e8f0"),
+    height=720,
+    hovermode="x unified",
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.03,
+        xanchor="center",
+        x=0.5,
+        bgcolor="rgba(15, 23, 42, 0.8)",
+        bordercolor="#334155",
+        borderwidth=1,
+        font=dict(size=11),
+    ),
+    margin=dict(l=55, r=55, t=70, b=45),
+)
+
+# Axis Styling
+fig.update_xaxes(
+    tickformat="%H:%M",
+    gridcolor="#1e293b",
+    zerolinecolor="#334155",
+    showspikes=True,
+    spikecolor="#38bdf8",
+    spikesnap="cursor",
+    spikemode="across",
+    spikethickness=1,
+)
+
+fig.update_yaxes(
+    title_text="Tok energie (kWh)",
+    gridcolor="#1e293b",
+    zerolinecolor="#334155",
+    row=1,
+    col=1,
+    secondary_y=False,
+)
+
+if show_soc:
+    fig.update_yaxes(
+        title_text="Kapacita baterie SoC (kWh)",
+        range=[0.0, 10.5],
+        gridcolor="rgba(0,0,0,0)",
+        row=1,
+        col=1,
+        secondary_y=True,
     )
-    fig.update_yaxes(title_text="Výkon (W)", row=1, col=1, secondary_y=False, gridcolor="#1e293b")
-    fig.update_yaxes(title_text="SoC (%)", range=[0, 105], row=1, col=1, secondary_y=True, gridcolor="#1e293b")
-    fig.update_yaxes(title_text="Cena (CZK)", row=2, col=1, gridcolor="#1e293b")
-    fig.update_xaxes(gridcolor="#1e293b")
 
+fig.update_yaxes(
+    title_text="Cena / Bilance (CZK)",
+    gridcolor="#1e293b",
+    zerolinecolor="#334155",
+    row=2,
+    col=1,
+)
+
+try:
+    st.plotly_chart(fig, width="stretch")
+except TypeError:
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("💡 V databázi zatím nejsou žádná data. Spusťte `python real_time/mqtt_service.py` (nebo s příznakem `--mock`) pro zahájení sběru dat.")
 
 
 # =====================================================================
-# 6. Live Telemetry & Commands Log Table
+# 9. Recent Commands Log Table (for Current Day)
 # =====================================================================
 
-st.markdown("### 📋 Poslední Odeslané Příkazy Střídači")
-if not ticks_df.empty:
+if current_date_str == today_iso:
+    st.markdown("### 📋 Poslední Odeslané Příkazy Střídači (Dnes)")
     display_cols = ["time_str", "price_czk", "p_home_w", "p_pv_w", "sim_soc", "command", "power_w", "reason", "profit_step_czk"]
-    recent_table = (
-        ticks_df[display_cols]
+    table_df = (
+        day_ticks[display_cols]
         .tail(12)
         .iloc[::-1]
         .rename(
@@ -396,12 +807,13 @@ if not ticks_df.empty:
             }
         )
     )
-    st.dataframe(recent_table, use_container_width=True, hide_index=True)
+    st.dataframe(table_df, use_container_width=True, hide_index=True)
 
 
 # =====================================================================
-# 7. Auto-refresh Hook
+# 10. Live Auto-Refresh (Only active when viewing today)
 # =====================================================================
 
-time.sleep(auto_refresh_sec)
-st.rerun()
+if current_date_str == today_iso:
+    time.sleep(auto_refresh_sec)
+    st.rerun()
