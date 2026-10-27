@@ -521,6 +521,17 @@ st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
 # Prepare plotting DataFrame with explicit gap breaks (inserting NaN rows when gap > 600s / 10m)
 GAP_THRESHOLD_SEC = 600.0  # 10 minutes
+
+# Segment tagging for gaps > 600s to allow independent polygon fills
+seg_id = 0
+seg_ids = [0]
+for i in range(1, len(day_ticks)):
+    gap_sec = (day_ticks.iloc[i]["dt"] - day_ticks.iloc[i - 1]["dt"]).total_seconds()
+    if gap_sec > GAP_THRESHOLD_SEC:
+        seg_id += 1
+    seg_ids.append(seg_id)
+day_ticks["segment"] = seg_ids
+
 plot_rows = []
 for i in range(len(day_ticks)):
     if i > 0:
@@ -557,22 +568,25 @@ times = plot_df["dt"]
 # SUBPLOT 1: POWER FLOWS (kW) & BATTERY CAPACITY (kWh)
 # -------------------------------------------------------------
 
-# 1. Solar PV - Amber Gold
-fig.add_trace(
-    go.Scatter(
-        x=times,
-        y=plot_df["pv_kw"],
-        name="Výroba FVE",
-        line=dict(color="#eab308", width=2.5),
-        fill="tozeroy",
-        fillcolor="rgba(234, 179, 8, 0.12)",
-        connectgaps=False,
-        hovertemplate="FVE: %{y:.2f} kW<extra></extra>",
-    ),
-    row=1,
-    col=1,
-    secondary_y=False,
-)
+# 1. Solar PV - Amber Gold (segmented to prevent Plotly's tozeroy fill from bleeding across gaps)
+for k, (s_id, seg_df) in enumerate(day_ticks.groupby("segment", sort=True)):
+    fig.add_trace(
+        go.Scatter(
+            x=seg_df["dt"],
+            y=seg_df["pv_kw"],
+            name="Výroba FVE",
+            legendgroup="Výroba FVE",
+            showlegend=(k == 0),
+            line=dict(color="#eab308", width=2.5),
+            fill="tozeroy",
+            fillcolor="rgba(234, 179, 8, 0.12)",
+            connectgaps=False,
+            hovertemplate="FVE: %{y:.2f} kW<extra></extra>",
+        ),
+        row=1,
+        col=1,
+        secondary_y=False,
+    )
 
 # 2. House Load - Strong Blue
 fig.add_trace(
