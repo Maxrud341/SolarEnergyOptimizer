@@ -466,16 +466,22 @@ if day_ticks.empty:
 day_ticks["dt"] = pd.to_datetime(day_ticks["timestamp"], format="mixed", errors="coerce")
 day_ticks = day_ticks.dropna(subset=["dt"]).sort_values("dt").reset_index(drop=True)
 
-# Convert power (W) and step duration (s) to energy (kWh)
+# Instantaneous power in kW (smooth, independent of time gaps)
+day_ticks["pv_kw"] = day_ticks["p_pv_w"] / 1000.0
+day_ticks["load_kw"] = day_ticks["p_home_w"] / 1000.0
+day_ticks["charge_kw"] = day_ticks["p_bat_w"].apply(lambda p: abs(p) if p < 0 else 0.0) / 1000.0
+day_ticks["discharge_kw"] = day_ticks["p_bat_w"].apply(lambda p: p if p > 0 else 0.0) / 1000.0
+day_ticks["buy_kw"] = day_ticks["p_grid_w"].apply(lambda p: abs(p) if p < 0 else 0.0) / 1000.0
+day_ticks["sell_kw"] = day_ticks["p_grid_w"].apply(lambda p: p if p > 0 else 0.0) / 1000.0
+
+# Convert power (kW) and step duration (s) to accumulated energy (kWh)
 day_ticks["dt_hours"] = day_ticks["dt_seconds"] / 3600.0
-day_ticks["load_kwh"] = (day_ticks["p_home_w"] / 1000.0) * day_ticks["dt_hours"]
-day_ticks["pv_kwh"] = (day_ticks["p_pv_w"] / 1000.0) * day_ticks["dt_hours"]
-
-day_ticks["charge_kwh"] = day_ticks["p_bat_w"].apply(lambda p: abs(p) if p < 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
-day_ticks["discharge_kwh"] = day_ticks["p_bat_w"].apply(lambda p: p if p > 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
-
-day_ticks["buy_kwh"] = day_ticks["p_grid_w"].apply(lambda p: abs(p) if p < 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
-day_ticks["sell_kwh"] = day_ticks["p_grid_w"].apply(lambda p: p if p > 0 else 0.0) / 1000.0 * day_ticks["dt_hours"]
+day_ticks["load_kwh"] = day_ticks["load_kw"] * day_ticks["dt_hours"]
+day_ticks["pv_kwh"] = day_ticks["pv_kw"] * day_ticks["dt_hours"]
+day_ticks["charge_kwh"] = day_ticks["charge_kw"] * day_ticks["dt_hours"]
+day_ticks["discharge_kwh"] = day_ticks["discharge_kw"] * day_ticks["dt_hours"]
+day_ticks["buy_kwh"] = day_ticks["buy_kw"] * day_ticks["dt_hours"]
+day_ticks["sell_kwh"] = day_ticks["sell_kw"] * day_ticks["dt_hours"]
 
 day_ticks["soc_kwh"] = (day_ticks["sim_soc"] / 100.0) * BATTERY_CAPACITY_KWH
 day_ticks["spot_price_czk"] = day_ticks["price_czk"]
@@ -519,7 +525,7 @@ fig = make_subplots(
     shared_xaxes=True,
     vertical_spacing=0.08,
     subplot_titles=(
-        "<b>⚡ Energetická bilance a baterie (kWh)</b>",
+        "<b>⚡ Výkon energetických toků (kW) a kapacita baterie (kWh)</b>",
         "<b>💰 Tržní spotové ceny OTE a finanční bilance (CZK)</b>",
     ),
     row_heights=[0.58, 0.42],
@@ -529,19 +535,19 @@ fig = make_subplots(
 times = day_ticks["dt"]
 
 # -------------------------------------------------------------
-# SUBPLOT 1: ENERGY BALANCE (kWh)
+# SUBPLOT 1: POWER FLOWS (kW) & BATTERY CAPACITY (kWh)
 # -------------------------------------------------------------
 
 # 1. Solar PV - Amber Gold
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["pv_kwh"],
+        y=day_ticks["pv_kw"],
         name="Výroba FVE",
         line=dict(color="#eab308", width=2.5),
         fill="tozeroy",
         fillcolor="rgba(234, 179, 8, 0.12)",
-        hovertemplate="FVE: %{y:.3f} kWh<extra></extra>",
+        hovertemplate="FVE: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
     col=1,
@@ -552,10 +558,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["load_kwh"],
+        y=day_ticks["load_kw"],
         name="Spotřeba domu",
         line=dict(color="#0284c7", width=2.5),
-        hovertemplate="Dům: %{y:.3f} kWh<extra></extra>",
+        hovertemplate="Dům: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
     col=1,
@@ -566,10 +572,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["charge_kwh"],
+        y=day_ticks["charge_kw"],
         name="Nabíjení baterie",
         line=dict(color="#10b981", width=2.0),
-        hovertemplate="Nabíjení: %{y:.3f} kWh<extra></extra>",
+        hovertemplate="Nabíjení: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
     col=1,
@@ -580,10 +586,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["discharge_kwh"],
+        y=day_ticks["discharge_kw"],
         name="Vybíjení baterie",
         line=dict(color="#8b5cf6", width=2.2),
-        hovertemplate="Vybíjení: %{y:.3f} kWh<extra></extra>",
+        hovertemplate="Vybíjení: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
     col=1,
@@ -594,10 +600,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["buy_kwh"],
+        y=day_ticks["buy_kw"],
         name="Nákup ze sítě",
         line=dict(color="#ef4444", width=1.8),
-        hovertemplate="Nákup: %{y:.3f} kWh<extra></extra>",
+        hovertemplate="Nákup: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
     col=1,
@@ -608,10 +614,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["sell_kwh"],
+        y=day_ticks["sell_kw"],
         name="Prodej do sítě (B2G)",
         line=dict(color="#ec4899", width=2.5),
-        hovertemplate="Prodej: %{y:.3f} kWh<extra></extra>",
+        hovertemplate="Prodej: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
     col=1,
@@ -750,7 +756,7 @@ fig.update_xaxes(
 )
 
 fig.update_yaxes(
-    title_text="Tok energie (kWh)",
+    title_text="Výkon toků (kW)",
     gridcolor="#1e293b",
     zerolinecolor="#334155",
     row=1,
