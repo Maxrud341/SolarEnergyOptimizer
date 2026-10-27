@@ -489,10 +489,6 @@ day_ticks["p_buy"] = (day_ticks["price_czk"] + IMPORT_FEE_CZK_PER_KWH) * (1.0 + 
 day_ticks["p_sell"] = day_ticks["price_czk"] - EXPORT_FEE_CZK_PER_KWH
 day_ticks["net_profit_czk"] = day_ticks["profit_step_czk"]
 
-# Instantaneous equivalent financial rate (CZK/h) for clear visible scale
-safe_dt_hours = day_ticks["dt_hours"].replace(0, 30.0 / 3600.0)
-day_ticks["profit_czk_h"] = day_ticks["net_profit_czk"] / safe_dt_hours
-
 # Sums
 load_sum = float(day_ticks["load_kwh"].sum())
 pv_sum = float(day_ticks["pv_kwh"].sum())
@@ -553,9 +549,9 @@ for i in range(len(day_ticks)):
 
 plot_df = pd.DataFrame(plot_rows)
 
-# Split into positive (green sell) and negative (red buy) for high-contrast visible bars
-plot_df["profit_pos_czk_h"] = plot_df["profit_czk_h"].apply(lambda v: v if (pd.notna(v) and v > 0) else np.nan)
-plot_df["profit_neg_czk_h"] = plot_df["profit_czk_h"].apply(lambda v: v if (pd.notna(v) and v < 0) else np.nan)
+# Split net profit into positive (green) and negative (red) in CZK
+plot_df["profit_pos_czk"] = plot_df["net_profit_czk"].apply(lambda v: v if (pd.notna(v) and v > 0) else np.nan)
+plot_df["profit_neg_czk"] = plot_df["net_profit_czk"].apply(lambda v: v if (pd.notna(v) and v < 0) else np.nan)
 
 fig = make_subplots(
     rows=2,
@@ -564,7 +560,7 @@ fig = make_subplots(
     vertical_spacing=0.08,
     subplot_titles=(
         "<b>⚡ Výkon energetických toků (kW) a kapacita baterie (kWh)</b>",
-        "<b>💰 Tržní spotové ceny OTE a finanční toky nákupu / prodeje (CZK/h)</b>",
+        "<b>💰 Tržní spotové ceny OTE a finanční bilance (CZK)</b>",
     ),
     row_heights=[0.58, 0.42],
     specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
@@ -733,17 +729,16 @@ if show_breakdown_costs:
         col=1,
     )
 
-# Step Financial Flows (Green for Profit / Sell, Red for Cost / Buy)
+# Step Financial Balance (Green for Profit / Sell, Red for Cost / Buy) in CZK
 fig.add_trace(
     go.Bar(
         x=times,
-        y=plot_df["profit_pos_czk_h"],
-        name="Zisk z prodeje (CZK/h)",
+        y=plot_df["profit_pos_czk"],
+        name="Zisk (CZK)",
         marker_color="#22c55e",
         width=45000,
         opacity=0.85,
-        customdata=plot_df["net_profit_czk"],
-        hovertemplate="Zisk z prodeje: +%{y:.2f} CZK/h (%{customdata:+.3f} CZK/krok)<extra></extra>",
+        hovertemplate="Zisk: +%{y:.3f} CZK<extra></extra>",
     ),
     row=2,
     col=1,
@@ -751,13 +746,12 @@ fig.add_trace(
 fig.add_trace(
     go.Bar(
         x=times,
-        y=plot_df["profit_neg_czk_h"],
-        name="Náklad nákupu (CZK/h)",
+        y=plot_df["profit_neg_czk"],
+        name="Náklad (CZK)",
         marker_color="#ef4444",
         width=45000,
         opacity=0.85,
-        customdata=plot_df["net_profit_czk"],
-        hovertemplate="Náklad nákupu: %{y:.2f} CZK/h (%{customdata:+.3f} CZK/krok)<extra></extra>",
+        hovertemplate="Náklad: %{y:.3f} CZK<extra></extra>",
     ),
     row=2,
     col=1,
@@ -842,7 +836,7 @@ if show_soc:
     )
 
 fig.update_yaxes(
-    title_text="Cena (CZK/kWh) & Finanční tok (CZK/h)",
+    title_text="Cena / Bilance (CZK)",
     gridcolor="#1e293b",
     zerolinecolor="#334155",
     row=2,
