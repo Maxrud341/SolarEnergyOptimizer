@@ -519,6 +519,25 @@ st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 # 8. Synchronized Plotly Subplots (Exact visualizer_web.py graphics)
 # =====================================================================
 
+# Prepare plotting DataFrame with explicit gap breaks (inserting NaN rows when gap > 600s / 10m)
+GAP_THRESHOLD_SEC = 600.0  # 10 minutes
+plot_rows = []
+for i in range(len(day_ticks)):
+    if i > 0:
+        gap_sec = (day_ticks.iloc[i]["dt"] - day_ticks.iloc[i - 1]["dt"]).total_seconds()
+        if gap_sec > GAP_THRESHOLD_SEC:
+            # 1. NaN row right after gap start to break the preceding segment
+            row_nan1 = {col: np.nan for col in day_ticks.columns}
+            row_nan1["dt"] = day_ticks.iloc[i - 1]["dt"] + pd.Timedelta(seconds=1)
+            plot_rows.append(row_nan1)
+            # 2. NaN row right before gap end to prevent connecting to next segment
+            row_nan2 = {col: np.nan for col in day_ticks.columns}
+            row_nan2["dt"] = day_ticks.iloc[i]["dt"] - pd.Timedelta(seconds=1)
+            plot_rows.append(row_nan2)
+    plot_rows.append(day_ticks.iloc[i].to_dict())
+
+plot_df = pd.DataFrame(plot_rows)
+
 fig = make_subplots(
     rows=2,
     cols=1,
@@ -532,7 +551,7 @@ fig = make_subplots(
     specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
 )
 
-times = day_ticks["dt"]
+times = plot_df["dt"]
 
 # -------------------------------------------------------------
 # SUBPLOT 1: POWER FLOWS (kW) & BATTERY CAPACITY (kWh)
@@ -542,11 +561,12 @@ times = day_ticks["dt"]
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["pv_kw"],
+        y=plot_df["pv_kw"],
         name="Výroba FVE",
         line=dict(color="#eab308", width=2.5),
         fill="tozeroy",
         fillcolor="rgba(234, 179, 8, 0.12)",
+        connectgaps=False,
         hovertemplate="FVE: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
@@ -558,9 +578,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["load_kw"],
+        y=plot_df["load_kw"],
         name="Spotřeba domu",
         line=dict(color="#0284c7", width=2.5),
+        connectgaps=False,
         hovertemplate="Dům: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
@@ -572,9 +593,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["charge_kw"],
+        y=plot_df["charge_kw"],
         name="Nabíjení baterie",
         line=dict(color="#10b981", width=2.0),
+        connectgaps=False,
         hovertemplate="Nabíjení: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
@@ -586,9 +608,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["discharge_kw"],
+        y=plot_df["discharge_kw"],
         name="Vybíjení baterie",
         line=dict(color="#8b5cf6", width=2.2),
+        connectgaps=False,
         hovertemplate="Vybíjení: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
@@ -600,9 +623,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["buy_kw"],
+        y=plot_df["buy_kw"],
         name="Nákup ze sítě",
         line=dict(color="#ef4444", width=1.8),
+        connectgaps=False,
         hovertemplate="Nákup: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
@@ -614,9 +638,10 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["sell_kw"],
+        y=plot_df["sell_kw"],
         name="Prodej do sítě (B2G)",
         line=dict(color="#ec4899", width=2.5),
+        connectgaps=False,
         hovertemplate="Prodej: %{y:.2f} kW<extra></extra>",
     ),
     row=1,
@@ -629,11 +654,12 @@ if show_soc:
     fig.add_trace(
         go.Scatter(
             x=times,
-            y=day_ticks["soc_kwh"],
+            y=plot_df["soc_kwh"],
             name="Stav nabití (SoC)",
             line=dict(color="#cbd5e1", width=2.2, dash="dashdot"),
+            connectgaps=False,
             hovertemplate="SoC: %{y:.2f} kWh (%{text:.1f}%)<extra></extra>",
-            text=day_ticks["sim_soc"],
+            text=plot_df["sim_soc"],
         ),
         row=1,
         col=1,
@@ -648,9 +674,10 @@ if show_soc:
 fig.add_trace(
     go.Scatter(
         x=times,
-        y=day_ticks["spot_price_czk"],
+        y=plot_df["spot_price_czk"],
         name="Spot OTE (CZK/kWh)",
         line=dict(color="#fbbf24", width=2.2),
+        connectgaps=False,
         hovertemplate="Spot OTE: %{y:.2f} CZK<extra></extra>",
     ),
     row=2,
@@ -662,9 +689,10 @@ if show_breakdown_costs:
     fig.add_trace(
         go.Scatter(
             x=times,
-            y=day_ticks["p_buy"],
+            y=plot_df["p_buy"],
             name="Nákupní cena (vč. distribuce a DPH)",
             line=dict(color="#f87171", width=1.5, dash="dot"),
+            connectgaps=False,
             hovertemplate="Nákupní cena: %{y:.2f} CZK<extra></extra>",
         ),
         row=2,
@@ -673,9 +701,10 @@ if show_breakdown_costs:
     fig.add_trace(
         go.Scatter(
             x=times,
-            y=day_ticks["p_sell"],
+            y=plot_df["p_sell"],
             name="Výkupní cena (čistá)",
             line=dict(color="#34d399", width=1.5, dash="dot"),
+            connectgaps=False,
             hovertemplate="Výkupní cena: %{y:.2f} CZK<extra></extra>",
         ),
         row=2,
@@ -683,11 +712,11 @@ if show_breakdown_costs:
     )
 
 # Step Net Profit / Balance (Green/Red Bar Chart)
-bar_colors = ["#22c55e" if val >= 0 else "#ef4444" for val in day_ticks["net_profit_czk"]]
+bar_colors = ["#22c55e" if (pd.notna(val) and val >= 0) else "#ef4444" for val in plot_df["net_profit_czk"]]
 fig.add_trace(
     go.Bar(
         x=times,
-        y=day_ticks["net_profit_czk"],
+        y=plot_df["net_profit_czk"],
         name="Kroková bilance (CZK)",
         marker_color=bar_colors,
         opacity=0.6,
