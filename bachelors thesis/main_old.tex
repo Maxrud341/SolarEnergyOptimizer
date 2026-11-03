@@ -1,0 +1,813 @@
+\documentclass[FM,Proj]{tulthesis}
+% tento dokument používá balíky specifické pro XeLaTeX a lze jej přeložit
+% jen XeLaTeXem, nemáte-li instalována použitá (komerční) písma, změňte
+% nebo vymažte příkazy \set...font na následujících řádcích
+
+% Autor šablony: Pavel Satrapa: http://www.nti.tul.cz/~satrapa/vyuka/latex-tul/
+
+% Autor komentářů, jejich překladů do EN, nastavení BibLaTeXu a aplikace ČSN ISO 690: Jan Koprnický
+% http://www.fm.tul.cz/personal/jan.koprnicky
+
+% ENGLISH EXPLANATION
+% \documentclass[FM,Dis,EN,fonts,bw,twoside]{tulthesis} % black and white typing, dissertation thesis at FM, written in English with using of TUL Mono font, text is prepared to print on two sides of the paper
+% this document uses packages specific for XeLaTeX and it is possible to 
+% compile it by XeLaTeX only, if you haven't installed used (commercial) fonts
+% change them or erase commands \set...font in following rows
+% settings: FM (faculty: FS, FT, FP, EF, FA, FM, FZS a CXI), Dis (type of thesis: BP, DP, Teze, Autoref, Hab, SP, Proj), EN (written in English language), fonts (activation of TUL fonts), bw (black and white)
+
+% Autor of the template tulthesis: Pavel Satrapa: http://www.nti.tul.cz/~satrapa/vyuka/latex-tul/
+
+% Autor of several comments and their translation into English, BibLaTeX settings and CSN ISO 960 citation standard setting: Jan Koprnický
+% http://www.fm.tul.cz/personal/jan.koprnicky
+
+% poslední změna / last modification viz/see 00README-JK.txt
+
+\newcommand{\verze}{2.3}
+
+\usepackage{polyglossia}
+\setdefaultlanguage{czech} % comment when English is preferred
+%\setdefaultlanguage{english} % comment when Czech is preferred
+
+\usepackage{float}
+\usepackage{makeidx}
+\makeindex
+\usepackage{dirtree}
+\usepackage{tabularx}
+
+\usepackage{xunicode}
+\usepackage{xltxtra}
+
+
+
+% příkazy specifické pro tento dokument / specific commands for this document
+\newcommand{\argument}[1]{{\ttfamily\color{\tulcolor}#1}}
+\newcommand{\argumentindex}[1]{\argument{#1}\index{#1}}
+\newcommand{\prostredi}[1]{\argumentindex{#1}}
+\newcommand{\prikazneindex}[1]{\argument{\textbackslash #1}}
+\newcommand{\prikaz}[1]{\prikazneindex{#1}\index{#1@\textbackslash #1}}
+\newenvironment{myquote}{\begin{list}{}{\setlength\leftmargin\parindent}\item[]}{\end{list}}
+\newenvironment{listing}{\begin{myquote}\color{\tulcolor}}{\end{myquote}}
+\sloppy
+
+% deklarace pro titulní stránku / title page declaration
+\TULtitle{ScanWatcher}{ScanWatcher}
+\TULauthor{Maksym Rudniev}
+
+% pro bakalářské, diplomové a disertační práce / for bachelor, master theses and dissertation
+\TULprogramme{B0613A140005}{Informační technologie}{Information Technology}
+\TULbranch{B0613A140005AI}{Aplikovaná informatika}{Applied informatics}
+%\TULbranch{1802T008}{Nějaký jiný obor}{Some other branch}
+\TULsupervisor{doc. Ing. Josef Chaloupka, Ph.D.}
+%\TULconsultant{doc. RNDr. Pavel Satrapa, Ph.D.}
+%\TULconsultant{doc. RNDr. Druhý Konzultant, Ph.D.}
+%\TULconsultant{doc. RNDr. Třetí Konzultant, Ph.D.}
+\TULyear{2025}
+
+% pro habilitační práce / habilitation thesis
+%\TULbranch{}{Technická kybernetika}{Technical cybernetics}
+%\TULyear{2022}
+
+% Použití bibLateXu, pracuje s ISO stylem
+% BibLaTeX settings, works with ISO style
+\usepackage[ 
+backend=biber
+% ,style=iso-authoryear % styl vyžaduje FZS TUL , místo příkazu \cite{} je potřeba využít \parencite{} (sazba kulatých závorek) / style required by FZS TUL use \parencite{} instead of \cite{}
+,style=iso-numeric
+%,style=numeric
+%,sortlocale=cs_CZ
+,sorting=nyt %seřazeno jméno, rok, titul
+,autolang=other
+,bibencoding=UTF8
+%,urldate=edtf
+,maxcitenames=2 %maximum v textu citovaných jmen
+,maxbibnames=3 %maximum v seznamu vyjmenovaných autorů
+]{biblatex}
+\addbibresource{refTULTHESIS.bib}% vložení seznamu literárních zdrojů v bib formátu / input of references in bib format
+
+% Úprava iso-numeric.bbx v souladu s požadavky TUL hranaté závorky v číslovaném seznamu / Modification of iso-numeric.bbx in accordance with TUL requirements of square brackets in a numbered list
+\DeclareFieldFormat{labelnumberwidth}{\mkbibbrackets{#1}}
+
+% Formátování podle pokynů FZS, při využití stylu iso-authoryear, čárka mezi jmény a poslední jméno se spojkou a / special requirements of FZS TUL 
+\DeclareDelimFormat{multinamedelim}{\addcomma\space}
+
+\DeclareDelimFormat{finalnamedelim}{%
+	\ifnumgreater{\value{liststop}}{2}{\finalandcomma}{}%
+	\addspace\bibstring{and}\space}
+
+\DeclareNameAlias{author}{family-given/given-family} 
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{csquotes} %užití biblatexu hlasí warnings, důvodem může být použití českých uvozovek v citacích! / solving of problems with Czech quotations
+\urlstyle{same} %sazba url odkazů stejným fontem jako ostatní text, řešení problémů v zalamování hypertextových odkazů v citacích / url in references setting into the same form as text 
+
+\usepackage{listings} %package for sourcode typesetting
+%řešení problémů češtiny např. při sazbě zdrojových kódů / czech special characters in sourcecode typesetting
+\makeatletter
+\lst@InputCatcodes
+\def\lst@DefEC{%
+	\lst@CCECUse \lst@ProcessLetter
+	^^80^^81^^82^^83^^84^^85^^86^^87^^88^^89^^8a^^8b^^8c^^8d^^8e^^8f%
+	^^90^^91^^92^^93^^94^^95^^96^^97^^98^^99^^9a^^9b^^9c^^9d^^9e^^9f%
+	^^a0^^a1^^a2^^a3^^a4^^a5^^a6^^a7^^a8^^a9^^aa^^ab^^ac^^ad^^ae^^af%
+	^^b0^^b1^^b2^^b3^^b4^^b5^^b6^^b7^^b8^^b9^^ba^^bb^^bc^^bd^^be^^bf%
+	^^c0^^c1^^c2^^c3^^c4^^c5^^c6^^c7^^c8^^c9^^ca^^cb^^cc^^cd^^ce^^cf%
+	^^d0^^d1^^d2^^d3^^d4^^d5^^d6^^d7^^d8^^d9^^da^^db^^dc^^dd^^de^^df%
+	^^e0^^e1^^e2^^e3^^e4^^e5^^e6^^e7^^e8^^e9^^ea^^eb^^ec^^ed^^ee^^ef%
+	^^f0^^f1^^f2^^f3^^f4^^f5^^f6^^f7^^f8^^f9^^fa^^fb^^fc^^fd^^fe^^ff%
+	% české znaky
+	^^^^010c^^^^010d^^^^010e^^^^010f^^^^011a^^^^011b^^^^0147^^^^0148%
+	^^^^0158^^^^0159^^^^0160^^^^0161^^^^0164^^^^0165%
+	^^^^016e^^^^016f^^^^017d^^^^017e%
+	^^00}
+\lst@RestoreCatcodes
+\makeatother
+
+\begin{document}
+	
+	\ThesisStart{male}
+	%\ThesisStart{zadani-a-prohlaseni.pdf}
+	
+	\begin{abstractCZ}
+	Semestrální projekt popisuje desktopovou aplikaci určenou k pohodlnému prohlížení
+	a editaci naskenovaných historických dokumentů. Aplikace umožňuje zobrazení
+	naskenovaných stránek spolu s jejich textovým přepisem, přepínání mezi
+	českým a německým jazykem, úpravu textu a vyhledávání v obsahu dokumentu.
+	Cílem aplikace je usnadnit práci s digitalizovanými knihami a archivy.
+	\end{abstractCZ}
+	
+	\begin{keywordsCZ}
+		naskenované dokumenty, prohlížeč, editor textu, digitalizace, archiv
+	\end{keywordsCZ}
+	
+	\vspace{2cm}
+	
+	\begin{abstractEN}
+	This semester project describes a desktop application designed for convenient viewing
+	and editing of scanned historical documents. The application allows users
+	to display scanned pages alongside their text transcriptions, switch between
+	Czech and German language versions, edit the transcribed text, and search
+	through the document contents. The goal of the application is to simplify
+	working with digitized books and archives.
+	\end{abstractEN}
+	
+	\begin{keywordsEN}
+		scanned documents, viewer, text editor, digitization, archive
+	\end{keywordsEN}
+	
+	\clearpage
+	
+	\begin{acknowledgement}
+		Rád bych poděkoval všem, kteří přispěli ke vzniku tohoto dílka.
+	\end{acknowledgement}
+	
+	\tableofcontents
+	
+	\clearpage
+	
+	\begin{abbrList}
+		\textbf{TUL} & Technická univerzita v~Liberci \\
+		\textbf{FM} & Fakulta mechatroniky, informatiky a mezioborových studií
+		Technické univerzity v~Liberci\\
+		\textbf{FUA} & Fakulta umění a architektury \\
+		\textbf{FS} & Fakulta strojní \\
+		\textbf{FT} & Fakulta textilní \\
+		\textbf{FP} & Fakulta přírodovědně-humanitní a pedagogická \\
+		\textbf{EF} & Ekonomická fakulta \\
+		\textbf{FZS} & Fakulta zdravotnických studií \\
+		\textbf{CXI} & Ústav pro nanomateriály, pokročilé technologie a inovace \\
+		\textbf{AI} & Artificial Intelligence 
+	\end{abbrList}
+	
+	
+\chapter{Úvod}
+
+Digitalizace historických dokumentů představuje jeden z~klíčových nástrojů
+pro zachování kulturního dědictví. Samotné naskenování dokumentu však nestačí
+-- pro plnohodnotné vědecké využití je nezbytné, aby byl obsah přístupný
+také ve formě editovatelného a prohledávatelného textu.\\[6pt]
+
+Práce s~digitalizovanými dokumenty přináší řadu specifických výzev. Historické
+texty jsou často psány v~jazycích, které se od současné normy výrazně liší,
+a jejich přepis vyžaduje odborné znalosti i pečlivou manuální kontrolu.
+Existující obecné nástroje přitom nejsou pro tento typ práce optimalizovány
+-- neumožňují současné zobrazení naskenované předlohy a textového přepisu
+ani strukturovanou navigaci v~rozsáhlých dokumentech.\\[6pt]
+
+Cílem tohoto semestrálního projektu je návrh a implementace desktopové aplikace, která
+poskytuje specializované prostředí pro prohlížení a editaci naskenovaných
+historických dokumentů. Aplikace umožňuje zobrazit naskenovanou stránku
+vedle jejího textového přepisu, přepínat mezi českou a německou jazykovou
+verzí, editovat text a procházet obsah dokumentu podle ročníků a kapitol.\\[6pt]
+
+V rámci projektu jsou využívána reálná historická data ve formě naskenovaných knih německých jizerských autorů z~období let 1891 až 1936. Tyto materiály představují cenný zdroj informací o regionální historii, kultuře a jazyce, avšak jejich zpracování je komplikováno dobovou typografií, jazykovými odlišnostmi a kvalitou dochovaných skenů. Právě tyto charakteristiky činí zvolená data vhodným testovacím prostředím pro navrhovanou aplikaci a zároveň zdůrazňují potřebu specializovaného nástroje pro efektivní práci s historickými dokumenty.
+		
+\chapter{Uživatelská dokumentace}
+\section{Přehled aplikace}
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth-3cm]{images/app_overview}
+	\caption{Celkový pohled na aplikaci}
+	\label{fig:app_overview}
+\end{figure}
+
+
+Na obrázku \ref{fig:app_overview} je zobrazen \textbf{celkový pohled na aplikaci} v jejím hlavním okně. Rozhraní je rozděleno do několika částí, které umožňují efektivní práci s digitalizovanými dokumenty. V horní části se nachází \textbf{lišta nabídek} obsahující záložky \textbf{File}, \textbf{Edit} a \textbf{Settings}, které poskytují přístup ke všem hlavním funkcím aplikace. Levou část okna tvoří \textbf{Image Viewer}, ve kterém je zobrazena naskenovaná stránka dokumentu. Tento panel umožňuje práci s obrazem, například jeho přiblížení, oddálení nebo posun, a také \textbf{přepínání mezi jazykovými verzemi} předlohy. Pravou část okna zabírá \textbf{textový editor}, který slouží k prohlížení a úpravám přepisu dokumentu. Editor podporuje \textbf{přepínání mezi českou a německou verzí textu}, mezi původním a upraveným obsahem a umožňuje aktivaci \textbf{režimu editace}.
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth-1cm]{images/app_diagram}
+	\caption{Diagram aplikace}
+	\label{fig:app_diagram}
+\end{figure}
+
+Na obrázku \ref{fig:app_diagram} je znázorněn \textbf{diagram aplikace}, který popisuje strukturu jednotlivých komponent a jejich vzájemné propojení. Diagram ukazuje, jak jsou hlavní části aplikace --- tedy \textbf{uživatelské rozhraní}, \textbf{modul pro zobrazování obrazů} a \textbf{textový editor} --- organizovány a jak mezi sebou komunikují. Z diagramu je patrné, že aplikace je navržena \textbf{modulárně}, což umožňuje oddělení jednotlivých funkcí a jejich snadnější rozšiřitelnost. Součástí návrhu je také práce s obsahem dokumentu, který je přístupný prostřednictvím okna \textbf{Contents}, a konfigurace aplikace, například \textbf{nastavení písma}, dostupná v sekci \textbf{Settings}.
+
+\clearpage
+
+\section{Main Window}
+
+\subsection{Menu Bar}
+Lišta nabídek obsahuje tři záložky: \textbf{File}, \textbf{Edit} a \textbf{Settings}.
+
+\begin{figure}[H]
+	\centering
+	\begin{minipage}[t]{0.3\textwidth}
+		\centering
+		\includegraphics[height=3cm]{images/menu_file}
+		\caption{Záložka File}
+		\label{fig:menu_file}
+	\end{minipage}
+	\hfill
+	\begin{minipage}[t]{0.3\textwidth}
+		\centering
+		\includegraphics[height=3cm]{images/menu_edit}
+		\caption{Záložka Edit}
+		\label{fig:menu_edit}
+	\end{minipage}
+	\hfill
+	\begin{minipage}[t]{0.3\textwidth}
+		\centering
+		\includegraphics[height=3cm]{images/menu_settings}
+		\caption{Záložka Settings}
+		\label{fig:menu_settings}
+	\end{minipage}
+\end{figure}
+
+\subsubsection{File}
+Záložka \textbf{File} slouží k práci se soubory a umožňuje otevření okna \textbf{Contents} (viz sekci~\ref{sec:contents}).
+
+\begin{description}
+	\item[Open Image] Umožňuje testovací prohlížení obrázků
+	\item[Open Text] Umožňuje testovací prohlížení textu
+	\item[Contents] Otevře okno \textbf{Contents} (viz sekci~\ref{sec:contents})
+\end{description}
+
+\subsubsection{Edit}
+Záložka \textbf{Edit} obsahuje nástroje pro práci s textem. Většina z nich je dostupná také přímo v rozhraní (viz sekci~\ref{sec:text_editor}).
+\label{sec:menu_edit}
+
+\begin{description}
+	\item[Start Editing / Stop Editing] Přepínač pro zapnutí nebo vypnutí režimu úprav
+	\item[Translate / Stop Translate] Přepínač pro zobrazení nebo skrytí překladu textu
+	\item[Save Changes] Uloží provedené změny
+	\item[Discard Changes] Zruší provedené změny
+	\item[View Original / Exit Original View] Přepínač pro zobrazení nebo skrytí původní verze textu
+\end{description}
+
+\subsubsection{Settings}
+Záložka \textbf{Settings} v současné době obsahuje pouze konfiguraci písma (viz sekci~\ref{sec:font_settings}).
+
+\begin{description}
+	\item[Open Settings] Otevře okno \textbf{Settings} (viz sekci~\ref{sec:settings})
+\end{description}
+
+\subsection{Image Viewer}
+\label{sec:image_viewer}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[height=10cm]{images/image_viewer}
+	\caption{Image Viewer}
+	\label{fig:image_viewer_main}
+\end{figure}
+
+Zobrazuje naskenovaný obrázek stránky dokumentu. \\
+Výchozím režimem okna je prohlížeč obrázků. Kromě něj jsou k dispozici dva další režimy zobrazení.
+
+\subsubsection{Image Viewer}
+
+\begin{description}
+	\item[Kolečko myši] Přiblížení nebo oddálení obrázku
+	\item[Držení LMB + tažení] Posun obrázku
+	\item[Posuvník vpravo] Svislý posun obrázku
+	\item[Posuvník dole] Vodorovný posun obrázku
+\end{description}
+
+\subsubsection{Original German Text a Original Czech Text}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[height=10cm]{images/image_viewer_mode}
+	\caption{Image Viewer Mode}
+	\label{fig:image_viewer_mode}
+\end{figure}
+
+Režim \textbf{Original German Text} zobrazuje přepis původního německého textu.
+Režim \textbf{Original Czech Text} zobrazuje přepis původního českého textu.
+
+\subsection{Text Editor}
+\label{sec:text_editor}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[height=10cm]{images/text_editor}
+	\caption{Text Editor}
+	\label{fig:text_editor}
+\end{figure}
+
+Jedná se o vizuální editor textu. V levém dolním rohu se nacházejí tři přepínací tlačítka. Stejné funkce jsou dostupné také v záložce \textbf{Edit} (viz sekci~\ref{sec:menu_edit}).
+
+\begin{description}
+	\item[Language (Czech / German)] Přepíná jazyk zobrazeného a editovaného textu
+	\item[Version (Edited / Original)] Přepíná mezi upravenou a původní verzí textu
+	\item[Mode (Start Editing / Save)] Zapíná režim editace a umožňuje uložení změn
+\end{description}
+
+Všechna tři tlačítka lze kombinovat, například je možné editovat německý text.
+V režimu \textbf{Original} není editace dostupná.
+
+\section{Contents}
+\label{sec:contents}
+
+\begin{figure}[H]
+	\centering
+	\begin{minipage}[t]{0.48\textwidth}
+		\centering
+		\includegraphics[height=7cm]{images/contents_window}
+		\caption{Okno Contents}
+		\label{fig:contents}
+	\end{minipage}
+	\hfill
+	\begin{minipage}[t]{0.48\textwidth}
+		\centering
+		\includegraphics[height=7cm]{images/contents_search}
+		\caption{Vyhledávání v okně Contents}
+		\label{fig:contents_search}
+	\end{minipage}
+\end{figure}
+
+Okno \textbf{Contents} obsahuje tři panely.
+
+\begin{description}
+	\item[Search] Textové pole pro vyhledávání podle názvu kapitoly
+	\item[Years] Seznam dostupných ročníků
+	\item[Chapters] Seznam kapitol vybraného ročníku
+\end{description}
+
+Kliknutím na ročník se v panelu Chapters zobrazí odpovídající kapitoly.
+Vyhledávání filtruje kapitoly napříč všemi ročníky.
+
+\section{Settings}
+\label{sec:settings}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[height=10cm]{images/settings_window}
+	\caption{Okno Settings}
+	\label{fig:settings}
+\end{figure}
+
+Okno \textbf{Settings} obsahuje dva panely a dvě tlačítka.
+
+\begin{description}
+	\item[Settings list] Výběr kategorie nastavení (v současnosti pouze Font Settings)
+	\item[Settings panel] Zobrazuje možnosti vybrané kategorie
+	\item[OK] Potvrdí a uloží změny
+	\item[Cancel] Zavře okno bez uložení změn
+\end{description}
+
+\subsection{Font Settings}
+\label{sec:font_settings}
+
+Nastavení písma pro zobrazení textu v Text Editoru (viz sekci~\ref{sec:text_editor}).
+
+\begin{description}
+	\item[Font list] Výběr rodiny písma
+	\item[Style] Tři zaškrtávací políčka: Bold, Italic, Underline
+	\item[Size list] Výběr velikosti písma
+	\item[Sample] Náhled textu „Sample“ zobrazený ve zvoleném stylu
+\end{description}
+
+\chapter{Technická dokumentace}
+
+\section{Project Structure}
+
+\dirtree{%
+	.1 ScanWatcher/.
+	.2 app/.
+	.2 resources/.
+	.3 data/.
+	.3 icons/.
+	.3 styles/.
+	.2 .gitignore.
+	.2 conf.json.
+	.2 requirements.txt.
+}
+
+\subsection{app/}
+
+Složka obsahuje veškerý zdrojový kód projektu.
+
+\begin{table}[H]
+	\centering
+	\caption{Soubory složky app/}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Soubor} & \textbf{Popis} \\ \hline
+		main.py              & Vstupní bod aplikace \\ \hline
+		ui\_mainwindow.py    & Definice hlavního okna \\ \hline
+		custom\_titlebar.py  & Vlastní titulní lišta (návrh, v aplikaci se nepoužívá) \\ \hline
+		page\_controller.py  & Řízení načítání a přepínání stránek \\ \hline
+		edit\_controller.py  & Logika režimu úprav \\ \hline
+		event\_controller.py & Zpracování událostí uživatelského rozhraní \\ \hline
+		image\_viewer.py     & Komponenta prohlížeče obrázků \\ \hline
+		contents.py          & Okno obsahu \\ \hline
+		contents\_loader.py  & Načítání dat obsahu \\ \hline
+		contents\_search.py  & Vyhledávání v obsahu \\ \hline
+		settings.py          & Logika okna nastavení \\ \hline
+		font\_settings.py    & Nastavení písma \\ \hline
+	\end{tabularx}
+	\label{tab:app-files}
+\end{table}
+
+\clearpage
+\subsection{resources/}
+
+Složka obsahuje veškeré prostředky projektu.
+
+\subsubsection{resources/data/}
+Hlavní datová složka. Obsahuje dvojici složek pro každý ročník od 1891 do 1941.
+
+\begin{table}[H]
+	\centering
+	\caption{Soubory datových složek}
+	\begin{tabularx}{\textwidth}{|l|l|X|}
+		\hline
+		\textbf{Složka} & \textbf{Soubor} & \textbf{Popis} \\ \hline
+		\texttt{rYYYY/} & \texttt{rYYYY\_sNNN.jpg} & Sken stránky knihy \\ \hline
+		\texttt{rYYYY/} & \texttt{rYYYY\_sNNN.txt} & Přepis německého textu \\ \hline
+		\texttt{rYYYY/} & \texttt{rYYYY\_sNNN\_new.txt} & Upravená verze přepisu (pokud existuje) \\ \hline
+		\texttt{rYYYY\_CZ/} & \texttt{rYYYY\_sNNN\_CZ.txt} & Český překlad německého přepisu \\ \hline
+		\texttt{rYYYY\_CZ/} & \texttt{rYYYY\_sNNN\_CZ\_new.txt} & Upravená verze překladu (pokud existuje) \\ \hline
+	\end{tabularx}
+	\label{tab:data-files}
+\end{table}
+
+kde \texttt{YYYY} = rok (4 cifry), \texttt{NNN} = číslo stránky (3 cifry).
+
+\subsubsection{resources/Obsah\_Inhalt\_1891-1941.xls}
+
+Hlavní datový soubor obsahu. Obsahuje seznam kapitol ve formátu uvedeném
+v tabulce \ref{tab:xls-columns}.
+
+\begin{table}[H]
+	\centering
+	\caption{Sloupce souboru Obsah\_Inhalt\_1891-1941.xls}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Sloupec} & \textbf{Popis} \\ \hline
+		Rok      & Ročník vydání (1891–1941) \\ \hline
+		Stránka  & Číslo stránky kapitoly v daném ročníku \\ \hline
+		Kapitola & Název kapitoly \\ \hline
+	\end{tabularx}
+	\label{tab:xls-columns}
+\end{table}
+
+Soubor je načítán při startu okna Contents (viz sekci~\ref{sec:contents})
+přes \texttt{contents\_loader.py}.
+
+\subsubsection{resources/icons/}
+
+Složka obsahuje veškeré ikony používané v aplikaci.
+
+\subsubsection{resources/styles/}
+
+Složka obsahuje soubory stylů aplikace.
+
+\subsubsection{main\_dark.qss}
+Hlavní tmavý styl aplikace.
+
+\subsection{Kořenové soubory}
+
+\begin{table}[H]
+	\centering
+	\caption{Kořenové soubory projektu}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Soubor} & \textbf{Popis} \\ \hline
+		conf.json        & Konfigurační soubor aplikace (v současné době ukládá pouze nastavení písma) \\ \hline
+		requirements.txt & Seznam závislostí Pythonu \\ \hline
+		.gitignore       & Pravidla pro ignorování souborů v Gitu \\ \hline
+	\end{tabularx}
+	\label{tab:root-files}
+\end{table}
+
+\clearpage
+\section{Scripts}
+
+\subsection{General Scripts}
+
+\subsubsection{app/main.py}
+
+Vstupní bod aplikace. Inicializuje Qt aplikaci, načte styl \texttt{main\_dark.qss},
+nastaví ikonu okna a spustí hlavní okno.
+
+\textbf{\texttt{MainController}} — hlavní třída okna, spojuje \texttt{Ui\_MainWindow}
+s \texttt{EventController}.
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy MainController}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		\_\_init\_\_ & Inicializuje UI, vytvoří EventController, nastaví ikonu okna a přepíše closeEvent \\ \hline
+	\end{tabularx}
+	\label{tab:maincontroller}
+\end{table}
+
+
+\subsubsection{app/event\_controller.py}
+
+Centrální řadič událostí. Propojuje UI signály s logikou aplikace, spravuje
+stav načtené stránky a koordinuje ostatní řadiče.
+
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy EventController}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		\_\_init\_\_                     & Inicializuje stav, připojí UI signály a načte konfiguraci písma \\ \hline
+		\_confirm\_unsaved\_changes       & Zobrazí dialog při neuložených změnách \\ \hline
+		\_get\_year\_path                & Vrátí cestu ke složce daného ročníku \\ \hline
+		get\_max\_page                   & Zjistí počet stránek ročníku podle .jpg souborů \\ \hline
+		\_on\_page\_changed              & Reaguje na změnu stránky a zavolá load\_page \\ \hline
+		load\_page                       & Načte obrázek a text pro daný rok, stránku a režim \\ \hline
+		openImage                        & Otevře dialog pro výběr obrázku \\ \hline
+		openText                         & Otevře dialog pro výběr textového souboru \\ \hline
+		openContents                     & Otevře nebo přenese do popředí okno Contents \\ \hline
+		onContentsClosed                 & Vymaže referenci na okno obsahu po jeho zavření \\ \hline
+		closeEvent                       & Ověří neuložené změny, zavře podokna a ukončí aplikaci \\ \hline
+		open\_settings                   & Otevře nebo přenese do popředí okno Settings \\ \hline
+		on\_config\_saved               & Aplikuje uložené nastavení písma na editor i prohlížeč \\ \hline
+		apply\_font\_config\_at\_startup & Načte conf.json při startu a aplikuje uložené písmo \\ \hline
+		highlight\_text                  & Dočasně zvýrazní hledaný text žlutě po dobu 10 sekund \\ \hline
+	\end{tabularx}
+	\label{tab:eventcontroller}
+\end{table}
+
+\clearpage
+
+\subsection{Main Window}
+
+\subsubsection{app/ui\_mainwindow.py}
+
+Definice a sestavení hlavního okna aplikace. Obsahuje dvě třídy.
+
+\textbf{\texttt{EditButtonTextEdit}} — rozšířený \texttt{QTextEdit} se třemi tlačítky
+v levém dolním rohu.
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy EditButtonTextEdit}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		\_\_init\_\_   & Vytvoří tlačítka editButton (tužka), viewButton (oko) a translateButton (DE/CZ) \\ \hline
+		resizeEvent    & Při změně velikosti přepočítá pozici tlačítek \\ \hline
+	\end{tabularx}
+	\label{tab:editbuttontextedit}
+\end{table}
+
+\textbf{\texttt{Ui\_MainWindow}} — sestavuje layout hlavního okna a propojuje UI akce.
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy Ui\_MainWindow}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		setupUi             & Vytvoří celý layout: splitter, PageController a menu bar \\ \hline
+		on\_splitter\_moved & Hlídá minimální šířky panelů při přetahování splitteru \\ \hline
+	\end{tabularx}
+	\label{tab:uimainwindow}
+\end{table}
+
+\subsubsection{app/image\_viewer.py}
+
+Komponenta pro zobrazení obrázků a textů stránky. Dědí z \texttt{QGraphicsView}.
+
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy ImageViewer}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		\_\_init\_\_              & Inicializuje scénu, scrollbary, QComboBox a QTextBrowser \\ \hline
+		get\_event\_controller    & Najde EventController procházením rodičovského stromu \\ \hline
+		\_on\_mode\_changed        & Přepne zobrazení podle zvoleného režimu v comboboxu \\ \hline
+		\_show\_image\_mode        & Zobrazí obrázek, skryje textový prohlížeč \\ \hline
+		\_show\_text\_file         & Načte textový soubor a zobrazí ho v QTextBrowser \\ \hline
+		apply\_font\_from\_config  & Aplikuje nastavení písma na QTextBrowser \\ \hline
+		load\_image               & Načte .jpg do scény a přizpůsobí měřítko viewportu \\ \hline
+		wheelEvent                & Kolečko myši přibližuje / oddaluje obrázek \\ \hline
+		resizeEvent               & Přepočítá pozici comboboxu a měřítko obrázku \\ \hline
+	\end{tabularx}
+	\label{tab:imageviewer}
+\end{table}
+
+\clearpage
+\subsubsection{app/edit\_controller.py}
+
+Správce stavu textového editoru. Řídí režimy úprav, překladu a zobrazení originálu.
+
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy TextEditorManager}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		set\_actions\_enabled     & Zapne nebo vypne všechna tlačítka a akce editoru \\ \hline
+		start\_editing            & Přepne editor do režimu úprav, změní ikonu na disketu \\ \hline
+		stop\_editing             & Ukončí režim úprav, vrátí ikonu tužky \\ \hline
+		toggle\_editing           & Přepínač mezi start\_editing a stop\_editing \\ \hline
+		\_confirm\_save\_original & Zobrazí varování při pokusu o uložení přes originál \\ \hline
+		save\_changes             & Uloží text do souboru \_new.txt nebo \_CZ\_new.txt \\ \hline
+		discard\_changes          & Zahodí změny a obnoví poslední načtený text \\ \hline
+		on\_text\_changed         & Sleduje změny textu a nastaví příznak unsaved\_changes \\ \hline
+		toggle\_original          & Přepínač mezi original\_view a exit\_original\_view \\ \hline
+		original\_view            & Načte originální verzi textu aktuální stránky \\ \hline
+		exit\_original\_view      & Vrátí se k upravené verzi textu aktuální stránky \\ \hline
+		toggle\_translate         & Přepínač mezi start\_translate a stop\_translate \\ \hline
+		start\_translate          & Přepne editor na český překlad aktuální stránky \\ \hline
+		stop\_translate           & Vrátí editor na německý originál aktuální stránky \\ \hline
+	\end{tabularx}
+	\label{tab:texteditormanager}
+\end{table}
+
+\subsubsection{app/page\_controller.py}
+
+Spodní navigační lišta pro přepínání stránek. Dědí z \texttt{QWidget},
+emituje signál \texttt{pageChanged}.
+
+
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy PageController}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		\_\_init\_\_           & Vytvoří layout s tlačítky šipek a polem pro číslo stránky \\ \hline
+		set\_max\_page         & Nastaví maximální číslo stránky a aktualizuje tlačítka \\ \hline
+		set\_page              & Nastaví aktuální stránku a aktualizuje UI \\ \hline
+		increment              & Přejde na další stránku \\ \hline
+		decrement              & Přejde na předchozí stránku \\ \hline
+		page\_entered          & Přečte číslo ze vstupního pole a přejde na zadanou stránku \\ \hline
+		update\_buttons\_state & Deaktivuje šipku na hranicích (první / poslední stránka) \\ \hline
+	\end{tabularx}
+	\label{tab:pagecontroller}
+\end{table}
+
+\clearpage
+
+\subsection{Contents Window}
+
+\subsubsection{app/contents.py}
+
+Definice a logika okna Contents (viz sekci~\ref{sec:contents}).
+
+\textbf{\texttt{Ui\_Contents}} — sestavuje layout okna a propojuje komponenty.
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy Ui\_Contents}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		setupUi            & Vytvoří layout, načte data a naváže vyhledávání \\ \hline
+		add\_year\_buttons & Naplní levý panel tlačítky ročníků \\ \hline
+		show\_chapters     & Zobrazí kapitoly zvoleného ročníku \\ \hline
+		chapter\_clicked   & Načte stránku a případně zvýrazní hledaný text \\ \hline
+		retranslateUi      & Nastaví titulek okna \\ \hline
+	\end{tabularx}
+	\label{tab:uicontents}
+\end{table}
+
+\textbf{\texttt{openContentsWindow(main\_window)}} — vytvoří a zobrazí okno Contents
+jako samostatný \texttt{QWidget}.
+
+\subsubsection{app/contents\_loader.py}
+
+Načítání obsahu z Excel souboru \texttt{Obsah\_Inhalt\_1891-1941.xls}.
+
+\textbf{\texttt{load\_contents()}} — načte soubor pomocí \texttt{pandas}, projde řádky
+a vrátí slovník \texttt{\{ rok: [\{ page, title \}] \}}.
+
+\subsubsection{app/contents\_search.py}
+
+Logika vyhledávání v okně Contents.
+
+\begin{table}[H]
+	\centering
+	\caption{Funkce a třídy modulu contents\_search.py}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Funkce / třída} & \textbf{Popis} \\ \hline
+		\_filter\_contents & Filtruje data podle vyhledávacího dotazu (case-insensitive) \\ \hline
+		\_clear\_left      & Odstraní všechna tlačítka ročníků \\ \hline
+		\_clear\_right     & Odstraní všechna tlačítka kapitol \\ \hline
+		\_restore\_full    & Obnoví plný seznam ročníků po vymazání vyhledávání \\ \hline
+		\_apply\_filter    & Aplikuje filtr a dávkově renderuje výsledky s HTML zvýrazněním \\ \hline
+		LineEditFilter     & QObject event filter — spustí vyhledávání při zaostření pole \\ \hline
+		bind\_search       & Naváže QTimer s 500 ms zpožděním na změny textu v lineEdit \\ \hline
+	\end{tabularx}
+	\label{tab:contents-search}
+\end{table}
+
+\clearpage
+\subsection{Settings Window}
+
+\subsubsection{app/settings.py}
+
+Hlavní okno nastavení (viz sekci~\ref{sec:settings}). Emituje signál
+\texttt{config\_saved} po uložení.
+
+\textbf{\texttt{SettingsWindow}}
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy SettingsWindow}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		\_\_init\_\_          & Sestaví layout s panely, FontSettingsWidget a tlačítky OK / Cancel \\ \hline
+		\_load\_file\_config  & Načte konfiguraci z conf.json pro porovnání při zavření \\ \hline
+		\_on\_ok              & Uloží konfiguraci, emituje config\_saved a zavře okno \\ \hline
+		closeEvent            & Zkontroluje neuložené změny a nabídne dialog Uložit / Zahodit / Zrušit \\ \hline
+	\end{tabularx}
+	\label{tab:settingswindow}
+\end{table}
+
+\subsubsection{app/font\_settings.py}
+
+Widget nastavení písma vložený do \texttt{SettingsWindow}.
+
+\textbf{\texttt{FontSettingsWidget}}
+
+\begin{table}[H]
+	\centering
+	\caption{Metody třídy FontSettingsWidget}
+	\begin{tabularx}{\textwidth}{|l|X|}
+		\hline
+		\textbf{Metoda} & \textbf{Popis} \\ \hline
+		\_\_init\_\_            & Sestaví grid layout se seznamem písem, checkboxy a náhledem Sample \\ \hline
+		\_apply\_config\_to\_ui & Nastaví výběry v seznamech a checkboxech podle konfigurace \\ \hline
+		update\_sample          & Aktualizuje font náhledu a uloží volby do self.config \\ \hline
+		save\_config            & Zapíše self.config do conf.json \\ \hline
+		load\_config            & Načte konfiguraci z conf.json do self.config \\ \hline
+	\end{tabularx}
+	\label{tab:fontsettingswidget}
+\end{table}
+		
+		
+\chapter{Závěr}
+
+V rámci semestrálního projektu se podařilo navrhnout a implementovat desktopovou aplikaci zaměřenou na práci s~digitalizovanými historickými dokumenty. Vytvořený nástroj poskytuje uživatelsky přívětivé prostředí, které efektivně propojuje vizuální podobu naskenovaných stránek s~jejich textovými přepisy. \\[6pt]
+
+Aplikace úspěšně integruje klíčové funkce, jako je \textbf{paralelní zobrazení obrazu a textu}, \textbf{podpora bilingvního obsahu} (český a německý jazyk) a \textbf{strukturovaná navigace} v~dokumentu. Implementovaný textový editor umožňuje nejen pohodlné prohlížení, ale i \textbf{přímou editaci a opravu přepisů}, což je zásadní pro práci s~historickými prameny. Součástí aplikace je také \textbf{vyhledávání} a přehled obsahu, které výrazně usnadňují orientaci v~rozsáhlých dokumentech. \\[6pt]
+
+Výsledná aplikace představuje funkční řešení odpovídající specifickým požadavkům oblasti digitalizace a archivnictví. Přínosem je zejména \textbf{propojení originálního zdroje s~jeho digitální verzí}, což zefektivňuje proces zpracování historických textů a zvyšuje jejich dostupnost pro další využití. \\[6pt]
+
+Do budoucna lze aplikaci dále rozšířit o~\textbf{automatické rozpoznávání textu (OCR)} s~využitím metod umělé inteligence, které by umožnilo generování prvotních přepisů přímo z~naskenovaných obrazů. Dalším směrem vývoje je implementace \textbf{cloudového ukládání a sdílení dat}, což by umožnilo spolupráci více uživatelů na jednom projektu. Uvažovat lze také o~rozšíření podpory dalších jazyků nebo o~pokročilé nástroje pro analýzu historických textů.
+	
+\chapter{Bibliografie}
+
+Při vývoji byly využity následující podpůrné zdroje:
+
+\begin{itemize}
+	\item \textbf{Nástroje AI (ChatGPT, Claude):} využity pro dílčí konzultace, optimalizaci a asistenci při ladění kódu.
+	\item \textbf{Externí knihovny:} komponenta pro zobrazování dokumentů využívá jako technický základ modul \texttt{QImageViewer.py} od autora acbetter (\url{https://gist.github.com/acbetter/32c575803ec361c3e82064e60db4e3e0}).
+\end{itemize}
+
+
+		
+	\end{document}

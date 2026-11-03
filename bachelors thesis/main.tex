@@ -1,0 +1,611 @@
+% !TeX document-id = {bd0fbe59-c48a-4d54-be75-12fddd078f35}
+% !TeX TXS-program:compile = txs:///xelatex
+% !TeX TXS-program:bibliography = txs:///biber
+% !TeX program = xelatex
+% !TeX encoding = UTF-8
+
+\documentclass[FM,BP]{tulthesis}
+% ==============================================================================
+% Šablona závěrečné práce Technické univerzity v Liberci (TUL)
+% Verze šablony: 2.3 (tulthesis.cls)
+%
+% Autor šablony: Pavel Satrapa (http://www.nti.tul.cz/~satrapa/vyuka/latex-tul/)
+% Autor komentářů, BibLaTeXu a ČSN ISO 690: Jan Koprnický (http://www.fm.tul.cz/personal/jan.koprnicky)
+%
+% NASTAVENÍ TŘÍDY DOKUMENTU:
+% Fakulta:        FM  - Fakulta mechatroniky, informatiky a mezioborových studií
+% Typ práce:      BP  - Bakalářská práce (pro bakalářskou práci je BP výchozí)
+% Volitelné:      localfonts - aktivuje písma TUL z lokální složky ./pisma/ (pro XeLaTeX)
+%                 fonts      - aktivuje systémově instalovaná písma TUL
+%                 bw         - černobílý tisk (vhodné pro tištěnou verzi)
+%                 sfheadings - bezserifové nadpisy kapitol
+%                 twoside    - oboustranný tisk (pro finální vazbu)
+% ==============================================================================
+
+\newcommand{\verze}{2.3}
+
+% Jazykové nastavení (XeLaTeX)
+\usepackage{polyglossia}
+\setdefaultlanguage{czech} % Primární jazyk: čeština
+%\setdefaultlanguage{english} % Odkomentujte, pokud je celá práce v angličtině
+
+% Matematické a typografické balíky
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{float}
+\usepackage{makeidx}
+\makeindex
+\usepackage{dirtree}
+\usepackage{tabularx}
+\usepackage{tabularray}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\usepackage{xunicode}
+\usepackage{xltxtra}
+
+% Příkazy specifické pro šablonu
+\newcommand{\argument}[1]{{\ttfamily\color{\tulcolor}#1}}
+\newcommand{\argumentindex}[1]{\argument{#1}\index{#1}}
+\newcommand{\prostredi}[1]{\argumentindex{#1}}
+\newcommand{\prikazneindex}[1]{\argument{\textbackslash #1}}
+\newcommand{\prikaz}[1]{\prikazneindex{#1}\index{#1@\textbackslash #1}}
+\newenvironment{myquote}{\begin{list}{}{\setlength\leftmargin\parindent}\item[]}{\end{list}}
+\newenvironment{listing}{\begin{myquote}\color{\tulcolor}}{\end{myquote}}
+\sloppy
+
+% ==============================================================================
+% DEKLARACE METADAT PRO TITULNÍ STRÁNKU (IS STAG)
+% ==============================================================================
+
+% Název práce: {Česky}{Anglicky}
+\TULtitle{Systém pro vzdálený monitoring FVE}%
+{Remote Monitoring System for Solar Power Plants}
+
+% Jméno autora
+\TULauthor{Maksym Rudniev}
+
+% Studijní program a obor (kódy a názvy dle zadání v IS STAG)
+\TULprogramme{B0613A140005}{Informační technologie}{Information Technology}
+\TULbranch{B0613A140005AI}{Aplikovaná informatika}{Applied Informatics}
+
+% Vedoucí práce a případný konzultant
+\TULsupervisor{Ing. Miloš Hernych}
+%\TULconsultant{doc. RNDr. Jméno Příjmení, Ph.D.}
+
+% Rok odevzdání
+\TULyear{2026}
+
+% ==============================================================================
+% BIBLIOGRAFIE A CITACE (ČSN ISO 690 / BibLaTeX)
+% ==============================================================================
+\usepackage[
+	backend=biber,
+	style=iso-numeric,
+	sorting=nyt,
+	autolang=other,
+	bibencoding=UTF8,
+	maxcitenames=2,
+	maxbibnames=3
+]{biblatex}
+\addbibresource{refTULTHESIS.bib}
+
+% Hranaté závorky pro číslované citace v souladu s TUL
+\DeclareFieldFormat{labelnumberwidth}{\mkbibbrackets{#1}}
+
+% Oddělovače jmen autorů dle standardu
+\DeclareDelimFormat{multinamedelim}{\addcomma\space}
+\DeclareDelimFormat{finalnamedelim}{%
+	\ifnumgreater{\value{liststop}}{2}{\finalandcomma}{}%
+	\addspace\bibstring{and}\space}
+\DeclareNameAlias{author}{family-given/given-family}
+
+\usepackage{csquotes}
+\urlstyle{same}
+
+% Nastavení sazby zdrojového kódu (balík listings s podporou češtiny)
+\usepackage{listings}
+\makeatletter
+\lst@InputCatcodes
+\def\lst@DefEC{%
+	\lst@CCECUse \lst@ProcessLetter
+	^^80^^81^^82^^83^^84^^85^^86^^87^^88^^89^^8a^^8b^^8c^^8d^^8e^^8f%
+	^^90^^91^^92^^93^^94^^95^^96^^97^^98^^99^^9a^^9b^^9c^^9d^^9e^^9f%
+	^^a0^^a1^^a2^^a3^^a4^^a5^^a6^^a7^^a8^^a9^^aa^^ab^^ac^^ad^^ae^^af%
+	^^b0^^b1^^b2^^b3^^b4^^b5^^b6^^b7^^b8^^b9^^ba^^bb^^bc^^bd^^be^^bf%
+	^^c0^^c1^^c2^^c3^^c4^^c5^^c6^^c7^^c8^^c9^^ca^^cb^^cc^^cd^^ce^^cf%
+	^^d0^^d1^^d2^^d3^^d4^^d5^^d6^^d7^^d8^^d9^^da^^db^^dc^^dd^^de^^df%
+	^^e0^^e1^^e2^^e3^^e4^^e5^^e6^^e7^^e8^^e9^^ea^^eb^^ec^^ed^^ee^^ef%
+	^^f0^^f1^^f2^^f3^^f4^^f5^^f6^^f7^^f8^^f9^^fa^^fb^^fc^^fd^^fe^^ff%
+	% české znaky
+	^^^^010c^^^^010d^^^^010e^^^^010f^^^^011a^^^^011b^^^^0147^^^^0148%
+	^^^^0158^^^^0159^^^^0160^^^^0161^^^^0164^^^^0165%
+	^^^^016e^^^^016f^^^^017d^^^^017e%
+	^^00}
+\lst@RestoreCatcodes
+\makeatother
+
+\lstset{
+	basicstyle=\ttfamily\small,
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	stepnumber=1,
+	numbersep=8pt,
+	backgroundcolor=\color{white},
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	frame=single,
+	tabsize=4,
+	captionpos=b,
+	breaklines=true,
+	breakatwhitespace=false,
+	keywordstyle=\color{blue}\bfseries,
+	commentstyle=\color{gray}\itshape,
+	stringstyle=\color{teal}
+}
+
+% ==============================================================================
+% HLAVNÍ DOKUMENT
+% ==============================================================================
+\begin{document}
+
+	% Úvodní strany bakalářské práce:
+	% \ThesisStart{male} vytvoří:
+	% 1. Oficiální titulní stranu Bakalářské práce
+	% 2. Místo pro vložení oficiálního zadání (vygenerovaného ze STAGu)
+	% 3. Čestné prohlášení o samostatném vypracování bakalářské práce
+	%
+	% Po obdržení podepsaného zadání lze zadat přímo PDF soubor:
+	% \ThesisStart{zadani-bp.pdf}
+	\ThesisStart{male}
+
+	% --------------------------------------------------------------------------
+	% ABSTRAKT A KLÍČOVÁ SLOVA (ČESKY)
+	% --------------------------------------------------------------------------
+	\begin{abstractCZ}
+	Tato bakalářská práce se zabývá návrhem, implementací a ověřením systému
+	pro vzdálený monitoring fotovoltaických elektráren (FVE) a bateriových úložišť.
+	Cílem práce je vytvoření spolehlivého řešení pro centralizovaný sběr, validaci,
+	archivaci a vizualizaci telemetrických dat v reálném čase. V práci je navržena
+	modulární backendová architektura využívající komunikační protokol MQTT pro příjem
+	provozních dat ze střídače i odesílání řídicích stavů. Systém zahrnuje robustní
+	validaci příchozích zpráv, dynamickou kompenzaci časového rozptylu (jitteru),
+	perzistentní ukládání do optimalizované databáze SQLite v režimu WAL a integraci
+	externích kontextových dat (spotové ceny elektřiny OTE a předpověď solárního osvitu).
+	Pro zajištění vysoké provozní spolehlivosti je implementován mechanismus hlídacího
+	psa (Watchdog) s automatickou detekcí výpadků komunikace a přechodem do bezpečnostního
+	režimu (failsafe). Pro uživatele bylo vytvořeno přehledné webové rozhraní nabízející
+	real-time vizualizaci okamžitých energetických a finančních toků, kapacity baterie,
+	historických přehledů s filtrací a diagnostiky stavu spojení. Funkčnost celého systému
+	byla experimentálně ověřena na reálných datech instalace Technické univerzity v Liberci.
+	\end{abstractCZ}
+
+	\begin{keywordsCZ}
+	Fotovoltaická elektrárna, vzdálený monitoring, MQTT, databáze SQLite, telemetrie,
+	vizualizace dat, Watchdog, internet věcí (IoT), spotový trh OTE.
+	\end{keywordsCZ}
+
+	\vspace{1.5cm}
+
+	% --------------------------------------------------------------------------
+	% ABSTRAKT A KLÍČOVÁ SLOVA (ANGLICKY)
+	% --------------------------------------------------------------------------
+	\begin{abstractEN}
+	This bachelor thesis focuses on the design, implementation, and evaluation of a remote
+	monitoring system for photovoltaic (PV) power plants and battery energy storage.
+	The primary objective is to develop a reliable solution for centralized real-time telemetry
+	acquisition, validation, archiving, and visualization. The thesis presents a modular backend
+	architecture utilizing the MQTT protocol for ingesting operational inverter telemetry and
+	dispatching control states. The system incorporates robust incoming data validation,
+	dynamic packet jitter compensation, high-performance persistence in an optimized SQLite
+	database operating in WAL mode, and integration of external operational context (day-ahead
+	electricity spot prices and solar irradiance forecasts). To ensure high operational reliability,
+	a communication watchdog mechanism is implemented with automated connection drop detection
+	and fail-safe fallback. An interactive web-based interface provides real-time visualization
+	of instantaneous energy and financial flows, battery state of charge, historical trends
+	with filtering, and connection health diagnostics. The functionality of the complete system
+	was experimentally verified using real-world operational data from the Technical University
+	of Liberec installation.
+	\end{abstractEN}
+
+	\begin{keywordsEN}
+	Photovoltaic power plant, remote monitoring, MQTT, SQLite database, telemetry,
+	data visualization, Watchdog, Internet of Things (IoT), OTE spot market.
+	\end{keywordsEN}
+
+	\clearpage
+
+	% --------------------------------------------------------------------------
+	% PODĚKOVÁNÍ
+	% --------------------------------------------------------------------------
+	\begin{acknowledgement}
+	Rád bych vyjádřil upřímné poděkování vedoucímu bakalářské práce,
+	Ing. Miloši Hernychovi, za odborné vedení, cenné rady, vstřícný přístup
+	a čas věnovaný konzultacím v průběhu řešení této práce. Dále děkuji
+	své rodině a blízkým za stálou podporu během celého studia.
+	\end{acknowledgement}
+
+	% --------------------------------------------------------------------------
+	% OBSAH A SEZNAMY
+	% --------------------------------------------------------------------------
+	\tableofcontents
+	\clearpage
+
+	%\listoffigures
+	%\clearpage
+
+	%\listoftables
+	%\clearpage
+
+	% --------------------------------------------------------------------------
+	% SEZNAM ZKRATEK
+	% --------------------------------------------------------------------------
+	\begin{abbrList}
+		\textbf{TUL}   & Technická univerzita v~Liberci \\
+		\textbf{FM}    & Fakulta mechatroniky, informatiky a mezioborových studií TUL \\
+		\textbf{FVE}   & Fotovoltaická elektrárna \\
+		\textbf{BESS}  & Bateriové úložiště energie (Battery Energy Storage System) \\
+		\textbf{SoC}   & Stav nabití akumulátoru (State of Charge) [\%] \\
+		\textbf{OTE}   & Operátor trhu s~elektřinou, a.s. \\
+		\textbf{LP}    & Lineární programování (Linear Programming) \\
+		\textbf{MPC}   & Prediktivní řízení na bázi modelu (Model Predictive Control) \\
+		\textbf{B2G}   & Dodávka energie z~baterie do sítě (Battery-to-Grid) \\
+		\textbf{MQTT}  & Message Queuing Telemetry Transport \\
+		\textbf{REST}  & Representational State Transfer (webové aplikační rozhraní) \\
+		\textbf{GHI}   & Globální horizontální ozáření (Global Horizontal Irradiance) [$\text{W/m}^2$] \\
+		\textbf{DNI}   & Přímé normálové ozáření (Direct Normal Irradiance) [$\text{W/m}^2$] \\
+		\textbf{LFP}   & Lithium-železo-fosfátový akumulátor ($\text{LiFePO}_4$) \\
+		\textbf{DPH}   & Daň z~přidané hodnoty (21\,\%) \\
+		\textbf{PCC}   & Místo připojení k~distribuční síti (Point of Common Coupling) \\
+	\end{abbrList}
+
+	\clearpage
+
+	% ==========================================================================
+	% HLAVNÍ ČÁST PRÁCE (KAPITOLY)
+	% ==========================================================================
+
+	\chapter{Úvod}
+	\label{chap:uvod}
+
+	Využití domácích fotovoltaických elektráren (FVE) v kombinaci s bateriovým úložištěm energie (BESS) zažívá v České republice obrovský rozmach. Rostoucí počet domácností dnes opouští fixní tarify a přechází na dynamické spotové ceny elektřiny organizované operátorem trhu OTE. Na tomto trhu se cena silové elektřiny mění každou hodinu podle aktuální rovnováhy nabídky a poptávky, což otevírá zcela nové možnosti: v dobách drahé elektřiny omezit odběr ze sítě či energii výhodně prodávat, a naopak v hodinách přebytku nakupovat za minimální, nebo dokonce záporné ceny.
+
+	Většina běžně instalovaných střídačů však dnes stále spoléhá na primitivní tovární logiku (režim \textit{Self-Consumption}). Ta funguje čistě reaktivně: jakmile ráno vyjde slunce, začne bez ohledu na budoucí ceny nabíjet baterii na maximum. Kolem poledne, kdy je solární výroba nejvyšší a spotové ceny často klesají do záporných hodnot, je však akumulátor již plně nabitý. Domácnost pak přebytečnou energii prodává se ztrátou, nebo musí výrobu nuceně omezovat (\textit{curtailment}). Naopak během drahých večerních špiček už v baterii často nezbývá dostatek energie.
+
+	Právě tato neefektivita mě motivovala k tomu, abych se ve své práci zaměřil na návrh a ověření pokročilého prediktivního optimalizačního algoritmu pro řízení toků energie a bateriovou arbitráž (B2G -- \textit{Battery-to-Grid}).
+
+	\section*{Čím jsem se v práci zabýval a co jsem zkoumal}
+	Na počátku práce jsem se soustředil na detailní analýzu reálných provozních dat domácí FVE osazené hybridním střídačem a LiFePO$_4$ akumulátorem Fox-ESS o kapacitě 10,24\,kWh. Zkoumal jsem nejen chování spotřeby a solární výroby, ale především ekonomické a fyzikální zákonitosti, které v běžných teoretických modelech často chybí:
+	\begin{itemize}
+		\item \textbf{Reálnou strukturu českých tarifů:} Zisk z arbitráže nelze počítat pouze z čisté ceny OTE. Nákup ze sítě je zatížen regulovanými distribučními poplatky a 21\,\% DPH, zatímco při výkupu si obchodník strhává svou marži. Cenový spread tak musí pokrýt nemalé transakční náklady.
+		\item \textbf{Ekonomiku opotřebení akumulátoru:} Každý cyklus způsobuje degradaci lithiových článků. Zkoumal jsem proto hranici rentability (\textit{Hurdle Rate}), aby zisk z arbitráže spolehlivě převýšil náklady na stárnutí baterie a ztráty vlivem účinnosti cyklu.
+		\item \textbf{Český asymetrický metering:} V ČR je každá fáze měřena samostatně. Z analýzy telemetrie vyplynulo, že spotřeba domu je silně nevyvážená -- téměř polovinu energie odebírá fáze $L_3$ s elektrickým bojlerem.
+		\item \textbf{Rizika spojená s předpovědí:} Zkoumal jsem, jak se vypořádat s chybami meteorologických předpovědí a jak zabránit nežádoucímu nočnímu přednabíjení ze sítě, které by přes den blokovalo kapacitu pro bezplatnou solární energii.
+	\end{itemize}
+
+	\section*{Návrh optimalizačního přístupu}
+	Místo jednoduchých rozhodovacích pravidel jsem navrhl matematický model lineárního programování (LP/MILP) v rámci klouzavého prediktivního řízení (MPC) s 24hodinovým horizontem. Model v každém kroku zohledňuje předpověď osvitu, budoucí spotové ceny i stav akumulátoru a hledá globálně nejvýhodnější strategii -- kdy energii uskladnit, kdy pokrýt spotřebu domu a kdy ji komerčně exportovat do sítě. Detailnímu rozboru matematické formulace, ochranných podmínek a konkrétních strategií se věnuji v následujících kapitolách této práce.
+
+	\section*{Čeho jsem dosáhl}
+	Navržený algoritmus jsem implementoval v jazyce Python a podrobně otestoval na historických datech. Výsledky potvrdily, že prediktivní optimalizátor výrazně překonává standardní tovární řízení. Podařilo se eliminovat nákupy v drahých večerních špičkách, ochránit systém před ztrátami při záporných spotových cenách a zajistit bezpečný, ekonomicky rentabilní export energie. Dosažené výsledky prokázaly, že matematická optimalizace přináší pro moderní domácí mikrogridy zásadní finanční i provozní výhodu.
+
+
+	\chapter{Optimalizační model a algoritmus bateriové arbitráže}
+	\label{chap:optimalizator}
+
+	V této kapitole je podrobně popsán matematický model a řídicí algoritmus
+	vyvinutého energetického managementu (EMS -- \textit{Energy Management System})
+	určeného pro komerční arbitráž na krátkodobém spotovém trhu s elektřinou.
+	Algoritmus je navržen tak, aby autonomně rozhodoval o tocích energie v mikrogridu
+	s fotovoltaickou elektrárnou a bateriovým úložištěm, maximalizoval finanční výnos
+	a současně respektoval fyzikální limity technologie a specifika českého tržního prostředí.
+
+	\section{Rámec prediktivního řízení a fyzikální model mikrosítě}
+	\label{sec:mpc_ramec}
+
+	Optimalizace je formulována v rámci klouzavého prediktivního řízení (MPC -- \textit{Model Predictive Control})
+	s diskrétním časovým krokem $\Delta t = 1\,\text{h}$ a plánovacím horizontem $H = 24\,\text{hodin}$.
+	Na počátku každé hodiny $k$ řešič vyhodnotí aktuální stav systému, aktualizuje předpovědi
+	cen i počasí a vyřeší optimalizační úlohu pro celý horizont $t \in \{0, \dots, H-1\}$.
+	Z vypočteného optimálního plánu se do reálného řízení aplikuje pouze akce pro první krok ($t = 0$),
+	načež se v dalším časovém kroku celý proces s novými měřeními opakuje (princip uzavřené zpětné vazby).
+
+	Uvažovaný mikrogrid se skládá ze čtyř základních entit:
+	\begin{enumerate}
+		\item \textbf{Fotovoltaická elektrárna (FVE):} Zdroj elektrické energie s predikovaným hodinovým profilem výroby $P_{\text{pv}}^{\text{pred}}(t) \ge 0$.
+		\item \textbf{Nepružná zátěž objektu:} Domácí spotřeba $P_{\text{load}}^{\text{pred}}(t) \ge 0$, která je z pohledu optimalizátoru neovlivnitelná a musí být v každém okamžiku bezpodmínečně pokryta.
+		\item \textbf{Bateriové úložiště (BESS):} Akumulátorový systém na bázi technologie $\text{LiFePO}_4$ (kalibrovaný podle modulární jednotky Fox-ESS HV2600 HS10.4 o jmenovité kapacitě $E_{\text{nom}} = 10{,}24\,\text{kWh}$) s maximálním trvalým výkonem nabíjení i vybíjení $P_{\text{bat}}^{\max} = 5{,}0\,\text{kW}$. Pro zajištění dlouhé životnosti ($\ge 6000$ cyklů) je provozní rozsah stavu nabití omezen na $\mathrm{SoC} \in [0{,}20; 1{,}00]$ jmenovité kapacity.
+		\item \textbf{Bod připojení k distribuční síti (PCC):} Umožňuje obousměrnou výměnu výkonu -- nákup elektřiny $P_{\text{buy}}(t)$ a prodej $P_{\text{sell}}(t)$ až do limitu hlavního jističe $P_{\text{grid}}^{\max} = 10{,}0\,\text{kW}$.
+	\end{enumerate}
+
+	\section{Matematická formulace lineárního programování (MILP/LP)}
+	\label{sec:lp_formulace}
+
+	Pro každý časový krok $t \in \{0, \dots, H-1\}$ zavádíme vektor spojitých rozhodovacích proměnných:
+	\begin{equation}
+		x(t) = \big[ P_{\text{buy}}(t), \, P_{\text{sell}}(t), \, P_{\text{ch}}(t), \, P_{\text{dis}}(t), \, \mathrm{SoC}(t), \, P_{\text{curt}}(t) \big]^T \in \mathbb{R}^6_{\ge 0},
+	\end{equation}
+	kde $P_{\text{buy}}(t)$ je výkon odebíraný ze sítě, $P_{\text{sell}}(t)$ výkon dodávaný do sítě, $P_{\text{ch}}(t)$ nabíjecí výkon akumulátoru, $P_{\text{dis}}(t)$ vybíjecí výkon akumulátoru, $\mathrm{SoC}(t)$ úroveň energie v akumulátoru na konci kroku $t$ a $P_{\text{curt}}(t)$ řízené omezení solárního výkonu (\textit{curtailment}).
+
+	\subsection{Účelová funkce (Objective Function)}
+	Cílem optimalizace je minimalizace čistých finančních nákladů na provoz mikrogridu za horizont $H$, včetně nákladů na stárnutí akumulátoru a penalizace za zmařenou solární energii, s odečtením terminální hodnoty energie v baterii:
+	\begin{equation}
+		\label{eq:objective}
+		\begin{split}
+			\min \sum_{t=0}^{H-1} \Big( & P_{\text{buy}}(t) \cdot C_{\text{buy}}(t) - P_{\text{sell}}(t) \cdot C_{\text{sell}}(t) \\
+			& + C_{\text{deg}} \cdot (P_{\text{ch}}(t) + P_{\text{dis}}(t)) + \epsilon \cdot P_{\text{curt}}(t) \Big) \Delta t - V_{\text{term}} \cdot \mathrm{SoC}(H-1).
+		\end{split}
+	\end{equation}
+	Jednotlivé parametry účelové funkce představují:
+	\begin{itemize}
+		\item $C_{\text{buy}}(t)$ -- efektivní nákupní cena elektřiny ze sítě [Kč/kWh],
+		\item $C_{\text{sell}}(t)$ -- efektivní výkupní cena elektřiny při exportu do sítě [Kč/kWh],
+		\item $C_{\text{deg}}$ -- jednotkový degradační náklad na opotřebení bateriových článků ($C_{\text{deg}} = 0{,}20\,\text{Kč/kWh}$),
+		\item $\epsilon$ -- malá numerická penalizace za nucené omezení přetoku ($\epsilon = 0{,}005\,\text{Kč/kWh}$), která zajišťuje, že curtailment nastane výhradně v situaci, kdy přebytečnou energii nelze využít ani prodat,
+		\item $V_{\text{term}}$ -- terminální ocenění energie uložené v baterii na konci horizontu [Kč/kWh].
+	\end{itemize}
+
+	\subsection{Terminální hodnota energie \texorpdfstring{$V_{\text{term}}$}{V\_term}}
+	V modelech s konečným horizontem bez terminální podmínky má řešič tendenci na konci intervalu ($t = H-1$) akumulátor kompletně vybít do sítě, protože budoucí hodnota energie po čase $H$ je v rovnici rovna nule. Aby k tomuto nežádoucímu jevu nedocházelo, stanovujeme terminální ocenění $V_{\text{term}}$ jako očekávanou úsporu z vytěsnění nákupu elektřiny v následujícím dni:
+	\begin{equation}
+		\label{eq:vterm}
+		V_{\text{term}} = \max \left( 0{,}5; \, \min \Big( \bar{C}_{\text{buy}} \cdot \eta_{\text{dis}} - C_{\text{deg}}, \, 1{,}5 \cdot (\bar{C}_{\text{sell}} + C_{\text{deg}}) \Big) \right),
+	\end{equation}
+	kde $\bar{C}_{\text{buy}}$ a $\bar{C}_{\text{sell}}$ představují průměrné predikované ceny v horizontu. Tím je zajištěno, že baterie nevstoupí do dalšího dne uměle vyprázdněná.
+
+	\subsection{Fyzikální a provozní omezení}
+	Pro každý časový krok $t \in \{0, \dots, H-1\}$ musí být splněny následující omezující podmínky:
+
+	\paragraph{1. Okamžitá uzlová bilance výkonu:}
+	Zákon zachování energie v mikrogridu vyžaduje rovnost mezi zdroji a spotřebiči:
+	\begin{equation}
+		\label{eq:power_balance}
+		P_{\text{buy}}(t) + P_{\text{pv}}^{\text{pred}}(t) + P_{\text{dis}}(t) = P_{\text{load}}^{\text{pred}}(t) + P_{\text{sell}}(t) + P_{\text{ch}}(t) + P_{\text{curt}}(t).
+	\end{equation}
+
+	\paragraph{2. Dynamika a kontinuita stavu nabití baterie:}
+	Úroveň akumulované energie v čase $t$ závisí na předchozím stavu a tocích s uvážením účinností:
+	\begin{equation}
+		\label{eq:soc_continuity}
+		\mathrm{SoC}(t) = \mathrm{SoC}(t-1) + \eta_{\text{ch}} \cdot P_{\text{ch}}(t) \cdot \Delta t - \frac{1}{\eta_{\text{dis}}} \cdot P_{\text{dis}}(t) \cdot \Delta t,
+	\end{equation}
+	přičemž pro $t = 0$ platí $\mathrm{SoC}(-1) = \mathrm{SoC}_{\text{curr}}$. Účinnosti nabíjení a vybíjení jsou nastaveny symetricky na $\eta_{\text{ch}} = \eta_{\text{dis}} = 0{,}975$, což odpovídá celkové cyklické účinnosti bateriového systému:
+	\begin{equation}
+		\eta_{\text{rt}} = \eta_{\text{ch}} \cdot \eta_{\text{dis}} = 0{,}975 \cdot 0{,}975 \approx 0{,}9506 \quad (95{,}06\,\%).
+	\end{equation}
+
+	\paragraph{3. Kapacitní a výkonové limity:}
+	\begin{align}
+		\mathrm{SoC}_{\min} &\le \mathrm{SoC}(t) \le \mathrm{SoC}_{\max}, \label{eq:soc_limits} \\
+		0 &\le P_{\text{ch}}(t) \le P_{\text{bat}}^{\max}, \label{eq:pch_limits} \\
+		0 &\le P_{\text{dis}}(t) \le P_{\text{bat}}^{\max}, \label{eq:pdis_limits} \\
+		0 &\le P_{\text{buy}}(t) \le P_{\text{grid}}^{\max}, \label{eq:pbuy_limits} \\
+		0 &\le P_{\text{sell}}(t) \le P_{\text{grid}}^{\max}, \label{eq:psell_limits} \\
+		0 &\le P_{\text{curt}}(t) \le P_{\text{pv}}^{\text{pred}}(t), \label{eq:pcurt_limits}
+	\end{align}
+	kde $\mathrm{SoC}_{\min} = 0{,}20 \cdot 10{,}24 = 2{,}048\,\text{kWh}$, $\mathrm{SoC}_{\max} = 10{,}24\,\text{kWh}$, $P_{\text{bat}}^{\max} = 5{,}0\,\text{kW}$ a $P_{\text{grid}}^{\max} = 10{,}0\,\text{kW}$.
+
+	\section{Tarifní a regulatorní model českého trhu}
+	\label{sec:tarify}
+
+	Správná kalkulace efektivních cen je pro ekonomickou úspěšnost arbitráže zcela zásadní. V České republice je nákup i prodej na spotovém trhu zatížen asymetrickými poplatky a daněmi:
+
+	\paragraph{Efektivní nákupní cena $C_{\text{buy}}(t)$:}
+	Zahrnuje hodinovou spotovou cenu OTE $P_{\text{spot}}(t)$, regulovanou složku za distribuci, podporu obnovitelných zdrojů (POZE), systémové služby ČEPS a daň z přidané hodnoty (DPH 21\,\%):
+	\begin{equation}
+		\label{eq:cbuy}
+		C_{\text{buy}}(t) = \big( P_{\text{spot}}(t) + \text{Fee}_{\text{import}} \big) \cdot (1 + \text{DPH}),
+	\end{equation}
+	kde distribuční poplatek $\text{Fee}_{\text{import}} = 1{,}80\,\text{Kč/kWh}$ a $\text{DPH} = 0{,}21$.
+
+	\paragraph{Efektivní prodejní cena $C_{\text{sell}}(t)$:}
+	Při dodávce energie do sítě domácnost obdrží spotovou cenu sníženou o marži obchodníka (agregátora):
+	\begin{equation}
+		\label{eq:csell}
+		C_{\text{sell}}(t) = P_{\text{spot}}(t) - \text{Fee}_{\text{export}},
+	\end{equation}
+	kde srážka obchodníka činí $\text{Fee}_{\text{export}} = 0{,}45\,\text{Kč/kWh}$.
+
+	\section{Teoretická odvození a matematické důkazy}
+	\label{sec:dukazy}
+
+	V této části jsou exaktně odvozeny klíčové podmínky, které odlišují funkční komerční arbitráž od naivních přístupů.
+
+	\subsection{Podmínka rentability arbitráže (Hurdle Rate Theorem)}
+
+	\paragraph{Věta 1 (Hurdle Rate):}
+	\textit{Nechť systém nakoupí ze sítě energii v čase $t_1$ a prodá ji zpět do sítě v čase $t_2$. Tato tržní operace je striktně zisková tehdy a jen tehdy, pokud efektivní prodejní cena v čase $t_2$ splňuje nerovnost:}
+	\begin{equation}
+		\label{eq:hurdle_rate}
+		C_{\text{sell}}(t_2) > \frac{C_{\text{buy}}(t_1)}{\eta_{\text{rt}}} + C_{\text{deg}} \cdot \left( 1 + \frac{1}{\eta_{\text{rt}}} \right).
+	\end{equation}
+
+	\paragraph{Důkaz:}
+	Uvažujme dodávku energie $E_{\text{net}} = 1\,\text{kWh}$ do distribuční sítě v čase $t_2$.
+	K tomu, aby střídač dodal do sítě $1\,\text{kWh}$, musí z chemické kapacity akumulátoru odebrat energii:
+	\begin{equation}
+		E_{\text{bat,dis}} = \frac{E_{\text{net}}}{\eta_{\text{dis}}} = \frac{1}{\eta_{\text{dis}}}\,\text{kWh}.
+	\end{equation}
+	Tato energie musela být dříve do akumulátoru uložena v čase $t_1$. K uložení energie $E_{\text{bat,dis}}$ do baterie bylo nutné ze sítě nakoupit:
+	\begin{equation}
+		E_{\text{grid,in}} = \frac{E_{\text{bat,dis}}}{\eta_{\text{ch}}} = \frac{1}{\eta_{\text{ch}} \cdot \eta_{\text{dis}}} = \frac{1}{\eta_{\text{rt}}}\,\text{kWh}.
+	\end{equation}
+	Celkový finanční náklad na nákup elektřiny činí:
+	\begin{equation}
+		N_{\text{nakup}} = E_{\text{grid,in}} \cdot C_{\text{buy}}(t_1) = \frac{C_{\text{buy}}(t_1)}{\eta_{\text{rt}}}.
+	\end{equation}
+	Dále operace způsobuje degradaci článků při nabíjení i vybíjení. Celkový degradační náklad je:
+	\begin{equation}
+		N_{\text{deg}} = C_{\text{deg}} \cdot (E_{\text{grid,in}} + E_{\text{net}}) = C_{\text{deg}} \cdot \left( \frac{1}{\eta_{\text{rt}}} + 1 \right).
+	\end{equation}
+	Příjem z prodeje energie činí $T_{\text{prodej}} = E_{\text{net}} \cdot C_{\text{sell}}(t_2) = C_{\text{sell}}(t_2)$.
+	Čistý zisk $\Pi = T_{\text{prodej}} - (N_{\text{nakup}} + N_{\text{deg}})$ je kladný právě tehdy, když:
+	\begin{equation}
+		C_{\text{sell}}(t_2) - \frac{C_{\text{buy}}(t_1)}{\eta_{\text{rt}}} - C_{\text{deg}} \cdot \left( 1 + \frac{1}{\eta_{\text{rt}}} \right) > 0,
+	\end{equation}
+	což přímo dokazuje vztah~\eqref{eq:hurdle_rate}. \hfill $\blacksquare$
+
+	\paragraph{Kvantitativní důsledek pro český trh:}
+	Dosadíme-li typické parametry: nákupní spotovou cenu $P_{\text{spot}}(t_1) = 1{,}00\,\text{Kč/kWh}$, dostaneme:
+	\begin{equation}
+		C_{\text{buy}}(t_1) = (1{,}00 + 1{,}80) \cdot 1{,}21 = 3{,}388\,\text{Kč/kWh}.
+	\end{equation}
+	Při $\eta_{\text{rt}} = 0{,}9506$ a $C_{\text{deg}} = 0{,}20\,\text{Kč/kWh}$ činí minimální efektivní prodejní cena:
+	\begin{equation}
+		C_{\text{sell}}(t_2) > \frac{3{,}388}{0{,}9506} + 0{,}20 \cdot \left( 1 + \frac{1}{0{,}9506} \right) = 3{,}564 + 0{,}410 = 3{,}974\,\text{Kč/kWh}.
+	\end{equation}
+	Jelikož $P_{\text{spot}}(t_2) = C_{\text{sell}}(t_2) + \text{Fee}_{\text{export}} = 3{,}974 + 0{,}45 = 4{,}424\,\text{Kč/kWh}$, nákup za $1{,}00\,\text{Kč}$ se vyplatí prodat až při spotové ceně přesahující $4{,}42\,\text{Kč/kWh}$!
+	Tento výpočet exaktně dokazuje, proč naivní arbitráž bez Hurdle Rate v praxi generuje setrvalou finanční ztrátu.
+
+	\subsection{Vytěsnění solární energie a pravidlo Zero Grid Pre-Charge}
+
+	\paragraph{Věta 2 (Zero Grid Pre-Charge):}
+	\textit{Nechť je předpovězen slunečný den, pro který očekávaný přebytek solární výroby nad spotřebou domu $S_{\text{pv}}^{\text{safe}}$ převyšuje volnou kapacitu baterie: $S_{\text{pv}}^{\text{safe}} \ge \mathrm{SoC}_{\max} - \mathrm{SoC}(t)$. Pak jakékoliv noční nabíjení baterie ze sítě ($P_{\text{ch}} > 0, P_{\text{buy}} > 0$) v hodinách před solárním vrcholem vede k čisté finanční ztrátě oproti nulovému nabíjení.}
+
+	\paragraph{Důkaz:}
+	Každá $1\,\text{kWh}$ energie uložená do baterie ze sítě v nočních hodinách za náklad $C_{\text{buy}}^{\text{night}} > 0$ obsadí $1\,\text{kWh}$ kapacity úložiště.
+	V průběhu dne nastane situace, kdy solární panely vygenerují přebytek energie s nulovým marginálním výrobním nákladem ($C_{\text{pv}} = 0$). Protože je však kapacita baterie obsazena dříve nakoupenou elektřinou, musí být tato solární energie buď:
+	\begin{enumerate}
+		\item nuceně zmařena ($P_{\text{curt}} > 0$), což přináší finanční výnos $0\,\text{Kč}$, přičemž noční náklad $C_{\text{buy}}^{\text{night}}$ zůstal uhrazen, nebo
+		\item prodána do sítě za polední cenu $C_{\text{sell}}^{\text{day}}$.
+	\end{enumerate}
+	Vzhledem k distribučním poplatkům a DPH však platí:
+	\begin{equation}
+		C_{\text{sell}}^{\text{day}} = P_{\text{spot}}^{\text{day}} - 0{,}45 < (P_{\text{spot}}^{\text{night}} + 1{,}80) \cdot 1{,}21 = C_{\text{buy}}^{\text{night}},
+	\end{equation}
+	což je v poledních hodinách slunečných dnů (kdy spotové ceny navíc klesají vlivem celostátní solární nadprodukce) splněno téměř univerzálně.
+	Přednabití ze sítě tedy vytěsnilo bezplatnou solární energii a nahradilo ji drahou energií ze sítě. Optimální strategie proto pro noční hodiny před slunečným dnem striktně stanovuje:
+	\begin{equation}
+		P_{\text{ch}}(t) \le P_{\text{pv}}^{\text{pred}}(t) \quad \forall t \in \{0, \dots, 5\},
+	\end{equation}
+	čímž je noční odběr do baterie zakázán. \hfill $\blacksquare$
+
+	\subsection{Záporné ceny a eliminace ztrát (Dynamic Curtailment)}
+
+	\paragraph{Věta 3 (Ochrana proti záporným cenám):}
+	\textit{Při výskytu záporné efektivní výkupní ceny $C_{\text{sell}}(t) < 0$ optimální řešení úlohy~\eqref{eq:objective} vynucuje $P_{\text{sell}}(t) = 0$ a přebytečnou solární energii přesměrovává do proměnné $P_{\text{curt}}(t)$.}
+
+	\paragraph{Důkaz:}
+	V účelové funkci~\eqref{eq:objective} vystupuje člen $-P_{\text{sell}}(t) \cdot C_{\text{sell}}(t)$.
+	Je-li $C_{\text{sell}}(t) < 0$, platí $-C_{\text{sell}}(t) > 0$, a prodej do sítě tedy působí jako přímá pokuta zvyšující hodnotu minimalizované účelové funkce.
+	Pokud je akumulátor plně nabit ($\mathrm{SoC} = \mathrm{SoC}_{\max}$), platí $P_{\text{ch}}(t) = 0$. V bilanční rovnici~\eqref{eq:power_balance} potom vystupuje přebytek:
+	\begin{equation}
+		P_{\text{pv}}^{\text{pred}}(t) - P_{\text{load}}^{\text{pred}}(t) = P_{\text{sell}}(t) + P_{\text{curt}}(t).
+	\end{equation}
+	Jelikož penalizace za curtailment je nastavena na $\epsilon = 0{,}005\,\text{Kč/kWh}$, zatímco pokuta za prodej při záporné ceně činí $|C_{\text{sell}}(t)| \ge 0{,}45\,\text{Kč/kWh}$, řešič lineárního programování lineárně preferuje $P_{\text{curt}}(t)$ před $P_{\text{sell}}(t)$. Tím je zajištěno $P_{\text{sell}}(t) = 0$ bez narušení bilanční rovnosti a bez pádu řešiče do nepřípustnosti (\textit{infeasibility}). \hfill $\blacksquare$
+
+	\section{Strategie řízení a robustnost proti nejistotě}
+	\label{sec:strategie}
+
+	Pro praktické nasazení byl základní LP model rozšířen o robustní bezpečnostní vrstvy:
+
+	\subsection{Konzervativní bezpečnostní diskonty předpovědí}
+	Predikce počasí i spotřeby nesou inherentní nejistotu. Aby domácnost nebyla vystavena riziku nedostatku energie při náhlém zakalení oblohy, pracuje optimalizátor s konzervativně upravenými profily:
+	\begin{align}
+		P_{\text{pv}}^{\text{safe}}(t) &= 0{,}80 \cdot P_{\text{pv}}^{\text{pred}}(t) \quad (\text{20\% bezpečnostní diskont na solární výrobu}), \\
+		P_{\text{load}}^{\text{safe}}(t) &= 1{,}15 \cdot P_{\text{load}}^{\text{pred}}(t) \quad (\text{15\% bezpečnostní přirážka na spotřebu domu}).
+	\end{align}
+	Výpočet očekávaného slunečního přebytku potom probíhá jako:
+	\begin{equation}
+		S_{\text{pv}}^{\text{safe}} = \sum_{t=0}^{H-1} \max \left( 0{,}0; \, P_{\text{pv}}^{\text{safe}}(t) - P_{\text{load}}^{\text{safe}}(t) \right).
+	\end{equation}
+
+	\subsection{Adaptivní držení energie pod cenové špičky (Adaptive Peak Preservation)}
+	Během odpoledních hodin (13:00--18:00) dochází často k poklesu solární výroby. Naivní řízení v této době začne okamžitě vybíjet akumulátor na pokrytí drobných spotřebičů v domě. Algoritmus B2G monitoruje, zda v podvečerních hodinách (19:00--22:00) nenastává výrazná cenová špička ($P_{\text{spot}} \ge 6{,}00\,\text{Kč/kWh}$). Pokud ano, zablokuje předčasné vybíjení a akumulovanou energii rezervuje na večer, kdy buď pokryje vysoké odběry, nebo ji se značným ziskem vyexportuje do sítě.
+
+	\subsection{Pravidlo Battery First v reálném čase}
+	Plán vypočtený MPC představuje hodinový rámec. V subsekundovém reálném čase však v domě dochází k dynamickým spínáním spotřebičů (např. indukční deska, rychlovarná konvice). Pravidlo \textit{Battery First} funguje jako okamžitá zpětná vazba: jakýkoliv okamžitý výkonový deficit je primárně kompenzován z akumulátoru až do limitu $P_{\text{bat}}^{\max}$, čímž je zamezeno nechtěným odběrům ze sítě v drahých tarifech.
+
+	\section{Experimentální benchmarky a vyhodnocení na reálných datech}
+	\label{sec:benchmarky}
+
+	Navržený optimalizační algoritmus byl podroben rozsáhlému experimentálnímu testování na reálných datech z provozu domácí FVE za období od května 2025 do září 2026 (celkem 17 měsíců, 11\,686 hodin nepřetržitého provozu). 
+
+	Jako srovnávací báze (\textit{Baseline}) byla použita standardní tovární logika \textit{Self-Consumption} (naivní nabíjení při solárním přebytku, okamžité vybíjení při deficitu, neřízený export a žádná reakce na spotové ceny).
+
+	\subsection{Souhrnné měsíční výsledky}
+	Tabulka~\ref{tab:benchmark_results} shrnuje dosažené energetické a ekonomické ukazatele za celé testovací období.
+
+	\begin{table}[htbp]
+		\centering
+		\small
+		\caption{Měsíční srovnání referenční strategie (Naive) a navrženého algoritmu Arbitrage B2G (reálná data květen 2025 -- září 2026)}
+		\label{tab:benchmark_results}
+		\resizebox{\textwidth}{!}{%
+		\begin{tabular}{lrrrrrrrrr}
+			\toprule
+			\textbf{Měsíc} & \textbf{Hodin} & \textbf{Výroba FVE} & \textbf{Spotřeba} & \textbf{Výsledek Naive} & \textbf{Výsledek B2G} & \textbf{Přínos B2G} & \textbf{B2G Export} & \textbf{Curtailment} & \textbf{Cykly} \\
+			& [h] & [kWh] & [kWh] & [Kč] & [Kč] & [Kč] & [kWh] & [kWh] & [bat] \\
+			\midrule
+			2025-05 & 177 & 234{,}2 & 304{,}2 & -778{,}66 & -501{,}59 & \textbf{+277{,}06} & 24{,}1 & 28{,}8 & 8{,}1 \\
+			2025-06 & 720 & 716{,}9 & 694{,}0 & -1\,440{,}88 & -739{,}43 & \textbf{+701{,}45} & 126{,}4 & 92{,}5 & 24{,}2 \\
+			2025-07 & 744 & 322{,}6 & 240{,}7 & -217{,}52 & +90{,}75 & \textbf{+308{,}27} & 108{,}2 & 1{,}6 & 16{,}1 \\
+			2025-08 & 744 & 377{,}6 & 348{,}5 & -360{,}95 & -33{,}59 & \textbf{+327{,}36} & 83{,}1 & 13{,}3 & 17{,}1 \\
+			2025-09 & 720 & 223{,}9 & 219{,}1 & -285{,}72 & +37{,}81 & \textbf{+323{,}53} & 102{,}2 & 7{,}2 & 15{,}5 \\
+			2025-10 & 744 & 126{,}5 & 194{,}1 & -612{,}19 & -368{,}98 & \textbf{+243{,}21} & 6{,}4 & 0{,}0 & 5{,}7 \\
+			2025-11 & 720 & 91{,}3 & 177{,}4 & -678{,}61 & -476{,}55 & \textbf{+202{,}06} & 0{,}0 & 0{,}0 & 3{,}2 \\
+			2025-12 & 744 & 50{,}3 & 149{,}6 & -743{,}75 & -522{,}70 & \textbf{+221{,}06} & 0{,}0 & 0{,}0 & 7{,}6 \\
+			2026-01 & 744 & 43{,}0 & 135{,}2 & -730{,}90 & -516{,}67 & \textbf{+214{,}24} & 12{,}0 & 0{,}0 & 9{,}3 \\
+			2026-02 & 672 & 95{,}2 & 163{,}8 & -567{,}63 & -389{,}75 & \textbf{+177{,}88} & 2{,}3 & 0{,}0 & 7{,}5 \\
+			2026-03 & 744 & 250{,}1 & 311{,}2 & -584{,}31 & -319{,}83 & \textbf{+264{,}48} & 18{,}5 & 0{,}1 & 10{,}9 \\
+			2026-04 & 720 & 370{,}3 & 403{,}0 & -474{,}97 & +62{,}30 & \textbf{+537{,}27} & 81{,}6 & 5{,}1 & 20{,}5 \\
+			2026-05 & 744 & 382{,}4 & 395{,}2 & -527{,}48 & -105{,}76 & \textbf{+421{,}72} & 66{,}1 & 24{,}0 & 17{,}0 \\
+			2026-06 & 720 & 344{,}8 & 237{,}2 & -103{,}39 & +461{,}65 & \textbf{+565{,}04} & 146{,}5 & 6{,}2 & 19{,}4 \\
+			2026-07 & 744 & 349{,}2 & 186{,}1 & -121{,}34 & +349{,}43 & \textbf{+470{,}77} & 169{,}4 & 17{,}0 & 21{,}8 \\
+			2026-08 & 744 & 299{,}2 & 184{,}2 & -57{,}01 & +348{,}35 & \textbf{+405{,}35} & 139{,}5 & 3{,}2 & 16{,}7 \\
+			2026-09 & 541 & 186{,}3 & 169{,}1 & -231{,}51 & +124{,}40 & \textbf{+355{,}90} & 87{,}8 & 0{,}0 & 13{,}5 \\
+			\midrule
+			\textbf{Celkem} & \textbf{11\,686} & \textbf{4\,463{,}8} & \textbf{4\,512{,}6} & \textbf{-8\,516{,}82} & \textbf{-2\,500{,}16} & \textbf{+6\,016{,}65} & \textbf{1\,174{,}1} & \textbf{199{,}0} & \textbf{234{,}1} \\
+			\bottomrule
+		\end{tabular}%
+		}
+	\end{table}
+
+	\subsection{Analýza a diskuse výsledků}
+	Z naměřených a nasimulovaných dat vyplývají následující klíčové závěry:
+
+	\paragraph{1. Celkový ekonomický přínos:}
+	Zatímco referenční strategie vygenerovala za sledované období celkový náklad na energii ve výši $-8\,516{,}82\,\text{Kč}$, navržený algoritmus snížil celkový náklad na $-2\,500{,}16\,\text{Kč}$. Čistá finanční úspora činí \textbf{+6\,016{,}65\,Kč}, což představuje \textbf{snížení celkových výdajů na elektřinu o více než 70\,\%}.
+
+	\paragraph{2. Sezónní chování a komerční export:}
+	\begin{itemize}
+		\item \textbf{Letní měsíce (červen až srpen):} V letním období se systém stává plně ziskovým. Například v červnu 2026 dosáhl čistého měsíčního zisku $+461{,}65\,\text{Kč}$ a v červenci $+349{,}43\,\text{Kč}$ (oproti záporné bilanci u Naive). Celkově bylo v lukrativních špičkách prodáno $1\,174{,}1\,\text{kWh}$ elektřiny.
+		\item \textbf{Zimní měsíce (listopad až únor):} V zimě, kdy je výroba FVE minimální (pouhých $43{,}0\,\text{kWh}$ v lednu), se algoritmus soustředí na ochranu před nákupem ve špičkách a nákup v nejlevnějších nočních hodinách. Export do sítě je v zimě téměř nulový, protože baterie slouží výhradně pro pokrytí domácnosti. I přesto úspora v každém zimním měsíci činí přibližně $200\,\text{Kč}$.
+	\end{itemize}
+
+	\paragraph{3. Šetrnost k životnosti akumulátoru:}
+	Za celých 17 měsíců provedl akumulátor pouze $234{,}1$ plných ekvivalentních cyklů, což odpovídá průměru přibližně \textbf{14{,}6 cyklu za měsíc}. Algoritmus díky podmínce Hurdle Rate neprovádí zbytečné mikrocyklování při malých cenových rozdílech. Při garantované životnosti $\ge 6000$ cyklů použitých článků $\text{LiFePO}_4$ představuje toto tempo opotřebení teoretickou životnost přesahující 30 let, což potvrzuje vysokou šetrnost a ekonomickou udržitelnost navrženého řešení.
+
+
+	% ==========================================================================
+	% LITERATURA A PRAMENY
+	% ==========================================================================
+	\clearpage
+	\phantomsection
+	\addcontentsline{toc}{chapter}{Literatura}
+	\printbibliography[title={Literatura}]
+
+	% ==========================================================================
+	% PŘÍLOHY (VOLITELNÉ)
+	% ==========================================================================
+	\appendix
+	\chapter{Struktura přiloženého zdrojového kódu}
+	\label{app:struktura}
+
+	Přiložené médium obsahuje kompletní zdrojové kódy vyvinutého systému:
+	\dirtree{%
+		.1 SolarEnergyOptimizer/.
+		.2 src/ \DTcomment{Původní simulační moduly a historický optimalizátor}.
+		.2 real\_time/ \DTcomment{Produkční služba reálného času}.
+		.3 config.py \DTcomment{Kalibrace hardwaru a tarify}.
+		.3 lp\_optimizer.py \DTcomment{LP optimalizační model PuLP CBC}.
+		.3 controller.py \DTcomment{Řídicí logika a Battery First}.
+		.3 mqtt\_service.py \DTcomment{MQTT démon s hlídacím psem (Watchdog)}.
+		.3 visualizer\_realtime.py \DTcomment{Webový dashboard Streamlit}.
+		.2 tests/ \DTcomment{Automatické jednotkové a integrační testy}.
+		.2 bachelors\ thesis/ \DTcomment{Zdrojové texty bakalářské práce v \LaTeX u}.
+	}
+
+\end{document}

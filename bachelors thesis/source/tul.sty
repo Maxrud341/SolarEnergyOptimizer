@@ -1,0 +1,507 @@
+\ProvidesPackage{tul}[2025/02/19 version 2.3]
+% Licence: CC BY
+
+\RequirePackage{ifthen}
+% indikator, ktera fakulta/ustav je aktivni, hodnotu meni volby baliku
+\newcommand{\sekce@TUL}{TUL}
+% jazykova verze
+\newcommand{\TUL@nguage}{CZ}
+\newcommand{\CZTUL}{Technick\'a univerzita v~Liberci}
+\newcommand{\ENTUL}{Technical university of Liberec}
+\newcommand{\TUL}{\ifthenelse{\equal{\TUL@nguage}{EN}}{\ENTUL}{\CZTUL}}
+\newcommand{\CZTULsoucast}{\CZTUL}
+\newcommand{\ENTULsoucast}{\ENTUL}
+\newcommand{\TULsoucast}{\ifthenelse{\equal{\TUL@nguage}{EN}}{\ENTULsoucast}{\CZTULsoucast}}
+
+% nastaveni stranky a rozmeru
+\ifthenelse{\lengthtest{\paperwidth=210mm}\AND\lengthtest{\paperheight=297mm}}{%format A4
+\setlength{\oddsidemargin}{-0.04cm}
+\setlength{\evensidemargin}{-0.04cm}
+\setlength{\textwidth}{16cm}
+\setlength{\topmargin}{-0.54cm}
+\setlength{\headheight}{0.8cm}
+\setlength{\headsep}{1.0cm}
+\setlength{\textheight}{22.5cm}
+\setlength{\footskip}{1.45cm}
+}{% jiny format
+\addtolength{\topmargin}{-1.0cm}
+\setlength{\headheight}{1.8cm}
+\setlength{\headsep}{1.0cm}
+\addtolength{\textheight}{0.75cm}
+\setlength{\footskip}{1.2cm}
+}
+
+\setlength{\unitlength}{1mm}
+
+\newcommand{\TULwide}{
+\setlength{\oddsidemargin}{-0.04cm}
+\setlength{\evensidemargin}{-0.04cm}
+\setlength{\textwidth}{\paperwidth}
+\addtolength{\textwidth}{-5cm}
+\makeTULf@@ter
+}
+
+% barvy TUL a jednotlivych fakult
+\RequirePackage{graphicx}
+\RequirePackage{xcolor}
+\definecolor{tul}{HTML}{5948AD}
+\definecolor{tulgray}{cmyk}{0, 0, 0, 0.8}
+\definecolor{tulFS}{HTML}{888B95}
+\definecolor{tulFT}{HTML}{924C14}
+\definecolor{tulFP}{HTML}{0076D5}
+\definecolor{tulEF}{HTML}{65A812}
+\definecolor{tulFUA}{HTML}{006443}
+\definecolor{tulFM}{HTML}{EA7603}
+\definecolor{tulFZS}{HTML}{00B0BE}
+\definecolor{tulCXI}{HTML}{C20019}
+\newcommand{\tulcolor}{tul}
+\newcommand{\titlecolor}{tul}
+
+% kontaktni informace
+\newcommand{\TULkontakt@name}{}
+\newcommand{\TULname}[1]{\renewcommand{\TULkontakt@name}{#1}}
+\newcommand{\TULkontakt@pos}{}
+\newcommand{\TULposition}[1]{\renewcommand{\TULkontakt@pos}{#1}}
+\newcommand{\TULkontakt@mail}{info@tul.cz}
+\newcommand{\TULmail}[1]{\renewcommand{\TULkontakt@mail}{#1}}
+\newcommand{\TULkontakt@phone}{+420 485 351 111}
+\newcommand{\TULphone}[1]{\renewcommand{\TULkontakt@phone}{#1}}
+\newcommand{\TUL@URL}{www.tul.cz}
+\newcommand{\TUL@adr}{{Studentsk\'a 1402/2, 461~17 Liberec~1\add@cz}}
+\newcommand{\add@cz}{\ifthenelse{\equal{\TUL@nguage}{EN}}{, Czech Republic}{}}
+\newcommand{\TULsekce@adr}{}
+
+% zahlavi a zapati
+\RequirePackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\newboolean{TUL@header}
+\setboolean{TUL@header}{true}
+
+\newlength{\logo@height}
+\newlength{\logo@shift}
+
+\newcommand{\TULheader}{
+    \fancyhead{}
+    \settoheight{\logo@height}{\logotext}
+    \setlength{\logo@shift}{1.4cm}
+    \addtolength{\logo@shift}{-\logo@height}
+    \fancyhead[L]{\raisebox{\logo@shift}[0pt]{\logotext}}
+    \fancyhead[R]{\raisebox{-1.15cm}[0pt]{\symbolTUL}}
+    \fancyheadoffset{1.5cm}}
+
+\newcommand{\noTULheader}{\setboolean{TUL@header}{false}\fancyhead{}}
+
+\newcommand{\makeTULf@@ter}[1]{
+    \fancyfootoffset{1.5cm}
+    \fancyfoot[C]{}
+    \fancyfoot[L]{\color{\tulcolor}\fontsize{9pt}{12pt}\selectfont
+        \raisebox{-0.7cm}[0pt]{\vbox{
+            \ifthenelse{\equal{\TULkontakt@name}{}}{}{\TULkontakt@name\ |
+            \ifthenelse{\equal{\TULkontakt@pos}{}}{\unskip{}}{\TULkontakt@pos\ |}}
+            \TULkontakt@phone\ | \TULkontakt@mail\\
+            \TUL
+            \ifthenelse{\equal{\CZTUL}{\CZTULsoucast}}{}{ | \TULsoucast}\\
+            \TUL@adr\ | \TUL@URL}}}
+    \ifthenelse{\equal{#1}{true}}{
+        \fancyfoot[R]{\raisebox{-0.15cm}[0pt]{\TULp@ge}}
+    }{
+        \fancyfoot[R]{}
+    }
+}
+
+\newcommand{\TULp@ge}{\thepage}
+
+\newcommand{\TULfooter}{\makeTULf@@ter{true}}
+\newcommand{\TULfooternopage}{\makeTULf@@ter{false}}
+\newcommand{\noTULfooter}{\fancyfoot[L,R]{}\fancyfoot[C]{\TULp@ge}}
+\newcommand{\nofootaddress}{\fancyfoot[L,C]{}\fancyfoot[R]{\TULp@ge}}
+\newcommand{\TULpage}{\TULheader\TULfooter}
+
+\fancypagestyle{TUL}{\TULheader\TULfooter}
+\fancypagestyle{TULnopage}{\TULheader\TULfooternopage}
+\fancypagestyle{TULheader}{\TULheader\noTULfooter}
+\fancypagestyle{TULheaderonly}{\TULheader\fancyfoot{}}
+\fancypagestyle{TULfooter}{\fancyhead{}\TULfooter}
+\fancypagestyle{TULfooternopage}{\fancyhead{}\TULfooternopage}
+\fancypagestyle{TULfooternoaddr}{\fancyhead{}\nofootaddress}
+
+
+% loga
+\newcommand{\symbolTUL}{\includegraphics[scale=0.3]{symbol-tul}}
+\newcommand{\symbolTULwh}{\includegraphics[scale=0.3]{symbol-tul-wh}}
+\newcommand{\symbolTULbw}{\includegraphics[scale=0.3]{symbol-tul-bw}}
+\newcommand{\symbolFS}{\includegraphics[scale=0.3]{symbol-fs}}
+\newcommand{\symbolFT}{\includegraphics[scale=0.3]{symbol-ft}}
+\newcommand{\symbolFP}{\includegraphics[scale=0.3]{symbol-fp}}
+\newcommand{\symbolEF}{\includegraphics[scale=0.3]{symbol-ef}}
+\newcommand{\symbolFUA}{\includegraphics[scale=0.3]{symbol-fua}}
+\newcommand{\symbolFM}{\includegraphics[scale=0.3]{symbol-fm}}
+\newcommand{\symbolFZS}{\includegraphics[scale=0.3]{symbol-fzs}}
+\newcommand{\symbolCXI}{\includegraphics[scale=0.3]{symbol-cxi}}
+\newcommand{\znakTUL}{\symbolTUL}
+\newcommand{\znakTULwh}{\symbolTULwh}
+\newcommand{\znakTULbw}{\symbolTULbw}
+\newcommand{\logoTUL}{\includegraphics[scale=0.3]{logo-tul}}
+\newcommand{\logoTULwh}{\includegraphics[scale=0.3]{logo-tul-wh}}
+\newcommand{\logoTULtext}{\includegraphics[scale=0.3]{logo-tul-txt}}
+\newcommand{\logoTULtextwh}{\includegraphics[scale=0.3]{logo-tul-txt-wh}}
+\newcommand{\logoTULalt}{\includegraphics[scale=0.3]{logo-tul-3r}}
+\newcommand{\logoTULaltwh}{\includegraphics[scale=0.3]{logo-tul-3r-wh}}
+\newcommand{\logoFS}{\includegraphics[scale=0.3]{logo-fs}}
+\newcommand{\logoFSwh}{\includegraphics[scale=0.3]{logo-fs-wh}}
+\newcommand{\logoFStext}{\includegraphics[scale=0.3]{logo-fs-txt}}
+\newcommand{\logoFStextwh}{\includegraphics[scale=0.3]{logo-fs-txt-wh}}
+\newcommand{\logoFT}{\includegraphics[scale=0.3]{logo-ft}}
+\newcommand{\logoFTwh}{\includegraphics[scale=0.3]{logo-ft-wh}}
+\newcommand{\logoFTtext}{\includegraphics[scale=0.3]{logo-ft-txt}}
+\newcommand{\logoFTtextwh}{\includegraphics[scale=0.3]{logo-ft-txt-wh}}
+\newcommand{\logoFP}{\includegraphics[scale=0.3]{logo-fp}}
+\newcommand{\logoFPwh}{\includegraphics[scale=0.3]{logo-fp-wh}}
+\newcommand{\logoFPtext}{\includegraphics[scale=0.3]{logo-fp-txt}}
+\newcommand{\logoFPtextwh}{\includegraphics[scale=0.3]{logo-fp-txt-wh}}
+\newcommand{\logoEF}{\includegraphics[scale=0.3]{logo-ef}}
+\newcommand{\logoEFwh}{\includegraphics[scale=0.3]{logo-ef-wh}}
+\newcommand{\logoEFtext}{\includegraphics[scale=0.3]{logo-ef-txt}}
+\newcommand{\logoEFtextwh}{\includegraphics[scale=0.3]{logo-ef-txt-wh}}
+\newcommand{\logoFUA}{\includegraphics[scale=0.3]{logo-fua}}
+\newcommand{\logoFUAwh}{\includegraphics[scale=0.3]{logo-fua-wh}}
+\newcommand{\logoFUAtext}{\includegraphics[scale=0.3]{logo-fua-txt}}
+\newcommand{\logoFUAtextwh}{\includegraphics[scale=0.3]{logo-fua-txt-wh}}
+\newcommand{\logoFM}{\includegraphics[scale=0.3]{logo-fm}}
+\newcommand{\logoFMwh}{\includegraphics[scale=0.3]{logo-fm-wh}}
+\newcommand{\logoFMtext}{\includegraphics[scale=0.3]{logo-fm-txt}}
+\newcommand{\logoFMtextwh}{\includegraphics[scale=0.3]{logo-fm-txt-wh}}
+\newcommand{\logoFZS}{\includegraphics[scale=0.3]{logo-fzs}}
+\newcommand{\logoFZSwh}{\includegraphics[scale=0.3]{logo-fzs-wh}}
+\newcommand{\logoFZStext}{\includegraphics[scale=0.3]{logo-fzs-txt}}
+\newcommand{\logoFZStextwh}{\includegraphics[scale=0.3]{logo-fzs-txt-wh}}
+\newcommand{\logoCXI}{\includegraphics[scale=0.3]{logo-cxi}}
+\newcommand{\logoCXIwh}{\includegraphics[scale=0.3]{logo-cxi-wh}}
+\newcommand{\logoCXItext}{\includegraphics[scale=0.3]{logo-cxi-txt}}
+\newcommand{\logoCXItextwh}{\includegraphics[scale=0.3]{logo-cxi-txt-wh}}
+\newcommand{\ENlogoTUL}{\includegraphics[scale=0.3]{logo-tul}}
+\newcommand{\ENlogoTULwh}{\includegraphics[scale=0.3]{logo-tul-wh}}
+\newcommand{\ENlogoTULtext}{\includegraphics[scale=0.3]{logo-tul-txt-en}}
+\newcommand{\ENlogoTULtextwh}{\includegraphics[scale=0.3]{logo-tul-txt-en-wh}}
+\newcommand{\ENlogoTULalt}{\includegraphics[scale=0.3]{logo-tul-3r-en}}
+\newcommand{\ENlogoTULaltwh}{\includegraphics[scale=0.3]{logo-tul-3r-en-wh}}
+\newcommand{\ENlogoFS}{\includegraphics[scale=0.3]{logo-fs-en}}
+\newcommand{\ENlogoFSwh}{\includegraphics[scale=0.3]{logo-fs-en-wh}}
+\newcommand{\ENlogoFStext}{\includegraphics[scale=0.3]{logo-fs-txt-en}}
+\newcommand{\ENlogoFStextwh}{\includegraphics[scale=0.3]{logo-fs-txt-en-wh}}
+\newcommand{\ENlogoFT}{\includegraphics[scale=0.3]{logo-ft}}
+\newcommand{\ENlogoFTwh}{\includegraphics[scale=0.3]{logo-ft-wh}}
+\newcommand{\ENlogoFTtext}{\includegraphics[scale=0.3]{logo-ft-txt-en}}
+\newcommand{\ENlogoFTtextwh}{\includegraphics[scale=0.3]{logo-ft-txt-en-wh}}
+\newcommand{\ENlogoFP}{\includegraphics[scale=0.3]{logo-fp-en}}
+\newcommand{\ENlogoFPwh}{\includegraphics[scale=0.3]{logo-fp-en-wh}}
+\newcommand{\ENlogoFPtext}{\includegraphics[scale=0.3]{logo-fp-txt-en}}
+\newcommand{\ENlogoFPtextwh}{\includegraphics[scale=0.3]{logo-fp-txt-en-wh}}
+\newcommand{\ENlogoEF}{\includegraphics[scale=0.3]{logo-ef-en}}
+\newcommand{\ENlogoEFwh}{\includegraphics[scale=0.3]{logo-ef-en-wh}}
+\newcommand{\ENlogoEFtext}{\includegraphics[scale=0.3]{logo-ef-txt-en}}
+\newcommand{\ENlogoEFtextwh}{\includegraphics[scale=0.3]{logo-ef-txt-en-wh}}
+\newcommand{\ENlogoFUA}{\includegraphics[scale=0.3]{logo-fua-en}}
+\newcommand{\ENlogoFUAwh}{\includegraphics[scale=0.3]{logo-fua-en-wh}}
+\newcommand{\ENlogoFUAtext}{\includegraphics[scale=0.3]{logo-fua-txt-en}}
+\newcommand{\ENlogoFUAtextwh}{\includegraphics[scale=0.3]{logo-fua-txt-en-wh}}
+\newcommand{\ENlogoFM}{\includegraphics[scale=0.3]{logo-fm}}
+\newcommand{\ENlogoFMwh}{\includegraphics[scale=0.3]{logo-fm-wh}}
+\newcommand{\ENlogoFMtext}{\includegraphics[scale=0.3]{logo-fm-txt-en}}
+\newcommand{\ENlogoFMtextwh}{\includegraphics[scale=0.3]{logo-fm-txt-en-wh}}
+\newcommand{\ENlogoFZS}{\includegraphics[scale=0.3]{logo-fzs-en}}
+\newcommand{\ENlogoFZSwh}{\includegraphics[scale=0.3]{logo-fzs-en-wh}}
+\newcommand{\ENlogoFZStext}{\includegraphics[scale=0.3]{logo-fzs-txt-en}}
+\newcommand{\ENlogoFZStextwh}{\includegraphics[scale=0.3]{logo-fzs-txt-en-wh}}
+\newcommand{\ENlogoCXI}{\includegraphics[scale=0.3]{logo-cxi}}
+\newcommand{\ENlogoCXIwh}{\includegraphics[scale=0.3]{logo-cxi-wh}}
+\newcommand{\ENlogoCXItext}{\includegraphics[scale=0.3]{logo-cxi-txt-en}}
+\newcommand{\ENlogoCXItextwh}{\includegraphics[scale=0.3]{logo-cxi-txt-en-wh}}
+\newcommand{\CZlogo}{\logoTUL}
+\newcommand{\CZlogowh}{\logoTULwh}
+\newcommand{\ENlogo}{\ENlogoTUL}
+\newcommand{\ENlogowh}{\ENlogoTULwh}
+\newcommand{\CZlogotext}{\logoTULtext}
+\newcommand{\CZlogotextwh}{\logoTULtextwh}
+\newcommand{\ENlogotext}{\ENlogoTULtext}
+\newcommand{\ENlogotextwh}{\ENlogoTULtextwh}
+\newcommand{\logo}{\ifthenelse{\equal{\TUL@nguage}{EN}}{\ENlogo}{\CZlogo}}
+\newcommand{\logowh}{\ifthenelse{\equal{\TUL@nguage}{EN}}{\ENlogowh}{\CZlogowh}}
+\newcommand{\logotext}{\ifthenelse{\equal{\TUL@nguage}{EN}}{\ENlogotext}{\CZlogotext}}
+\newcommand{\logotextwh}{\ifthenelse{\equal{\TUL@nguage}{EN}}{\ENlogotextwh}{\CZlogotextwh}}
+
+\newcommand{\darkTULbg}{
+    \renewcommand{\symbolTUL}{\symbolTULwh}
+    \renewcommand{\logo}{\logowh}
+    \renewcommand{\logotext}{\logotextwh}
+    \renewcommand{\logoTULalt}{\logoTULaltwh}
+}
+
+% oddelovac v textu (svisla cara ve fakultni barve)
+\newcommand{\oddel}{{\color{\tulcolor}\rule{1pt}{1.7ex}}}
+
+% styl a barva nadpisu
+\RequirePackage[sf, bf]{titlesec}
+\newcommand{\TUL@headfnt}{\TULmono\bfseries}
+\@ifundefined{chapter}{}{\titleformat*{\chapter}{\color{\titlecolor}\TUL@headfnt\LARGE\raggedright}}
+\@ifundefined{section}{}{\titleformat*{\section}{\color{\titlecolor}\TUL@headfnt\Large\raggedright}}
+
+% titulni stranka
+\newcommand{\create@uthb@x}[2]{%
+\vspace{2cm}
+
+{\Large #1}
+
+\vspace{0.5cm}
+
+{\large #2}
+}
+
+\newlength{\f@ntsize}
+\setlength{\f@ntsize}{\f@size pt}
+
+\newcommand{\TULtitlepage}[3]{{%
+\thispagestyle{TULheaderonly}
+\mbox{}
+\vfill
+\vfill
+\vfill
+\bgroup
+\raggedright
+\color{\tulcolor}\huge\bfseries\TULmono\setlength{\baselineskip}{2.5\f@ntsize} #1\par
+
+\create@uthb@x{#2}{#3}
+\egroup
+\vfill
+\newpage
+}}
+
+\newcommand{\TULfancytitlepage}[3]{{%
+\thispagestyle{TULheaderonly}
+\pagecolor{\tulcolor}\darkTULbg
+\mbox{}
+\vfill
+\vfill
+\vfill
+\bgroup
+\raggedright
+\color{white}\huge\bfseries\TULmono\setlength{\baselineskip}{2.5\f@ntsize} #1\par
+
+\create@uthb@x{#2}{#3}
+\egroup
+\vfill
+\newpage
+\pagecolor{white}
+}}
+
+% pisma - priprava
+\newboolean{TULf@nts}
+\setboolean{TULf@nts}{false}
+\newboolean{TULl@calf@nts}
+\setboolean{TULl@calf@nts}{false}
+
+% prepinac stylu: nazev fakulty/ustavu
+\newcommand{\switchTULstyle}[1]{
+    \renewcommand{\sekce@TUL}{#1}
+    \renewcommand{\tulcolor}{tul#1}
+    \renewcommand{\titlecolor}{tul#1}
+    \renewcommand{\CZlogo}{\csname logo#1\endcsname}
+    \renewcommand{\CZlogowh}{\csname logo#1wh\endcsname}
+    \renewcommand{\ENlogo}{\csname ENlogo#1\endcsname}
+    \renewcommand{\ENlogowh}{\csname ENlogo#1wh\endcsname}
+    \renewcommand{\CZlogotext}{\csname logo#1text\endcsname}
+    \renewcommand{\CZlogotextwh}{\csname logo#1textwh\endcsname}
+    \renewcommand{\ENlogotext}{\csname ENlogo#1text\endcsname}
+    \renewcommand{\ENlogotextwh}{\csname ENlogo#1textwh\endcsname}
+    \renewcommand{\symbolTUL}{\csname symbol#1\endcsname}
+}
+
+% nastaveni jednotlivych fakult/ustavu: \TUL@<utvar>@setup
+
+\newcommand{\TUL@FS@setup}{\switchTULstyle{FS}%
+\renewcommand{\ENTULsoucast}{Faculty of Mechanical Engineering}%
+\renewcommand{\CZTULsoucast}{Fakulta strojn\'\i{}}%
+\TULphone{+420 485 353 108}
+\renewcommand{\TUL@URL}{www.fs.tul.cz}
+}
+
+\newcommand{\TUL@FT@setup}{\switchTULstyle{FT}%
+\renewcommand{\ENTULsoucast}{Faculty of Textile Engineering}%
+\renewcommand{\CZTULsoucast}{Fakulta textiln\'\i{}}%
+\TULphone{+420 485 353 452}
+\renewcommand{\TUL@URL}{www.ft.tul.cz}
+}
+
+\newcommand{\TUL@FP@setup}{\switchTULstyle{FP}%
+\renewcommand{\ENTULsoucast}{Faculty of Sciences, Humanities and Education}%
+\renewcommand{\CZTULsoucast}{Fakulta
+    p\v r\'\i{}rodov\v edn\v e-humanitn\'\i{} a pedagogick\'a}%
+\TULphone{+420 485 352 815}
+\renewcommand{\TUL@URL}{www.fp.tul.cz}
+\renewcommand{\TUL@adr}{Univerzitn\'\i{} n\'am\v est\'\i{} 1410/1,
+    461~17 Liberec~1\add@cz}
+}
+
+\newcommand{\TUL@EF@setup}{\switchTULstyle{EF}%
+\renewcommand{\ENTULsoucast}{Faculty of Economics}%
+\renewcommand{\CZTULsoucast}{Ekonomick\'a fakulta}%
+\TULphone{+420 485 352 388}
+\renewcommand{\TUL@URL}{www.ef.tul.cz}
+\renewcommand{\TUL@adr}{Voron\v e\v zsk\'a 1329/13, 460~02 Liberec~2\add@cz}
+}
+
+\newcommand{\TUL@FE@setup}{\TUL@EF@setup}
+
+\newcommand{\TUL@FUA@setup}{\switchTULstyle{FUA}%
+\renewcommand{\ENTULsoucast}{Faculty of Arts and Architecture}%
+\renewcommand{\CZTULsoucast}{Fakulta um\v en\'\i{} a architektury}%
+\TULphone{+420 485 353 506}
+\TULmail{fua@tul.cz}
+\renewcommand{\TUL@URL}{www.fua.tul.cz}
+}
+
+\newcommand{\TUL@FM@setup}{\switchTULstyle{FM}%
+\renewcommand{\ENTULsoucast}{Faculty of Mechatronics, Informatics
+    and Interdisciplinary Studies}%
+\renewcommand{\CZTULsoucast}{Fakulta mechatroniky, informatiky
+    a mezioborov\'ych studi\'\i{}}%
+\TULphone{+420 485 353 757}
+\renewcommand{\TUL@URL}{www.fm.tul.cz}
+}
+
+\newcommand{\TUL@FZS@setup}{\switchTULstyle{FZS}%
+\renewcommand{\ENTULsoucast}{Faculty of Health Studies}%
+\renewcommand{\CZTULsoucast}{Fakulta zdravotnick\'ych studi\'\i{}}%
+\TULphone{+420 485 353 593}
+\TULmail{fzs@tul.cz}
+\renewcommand{\TUL@URL}{www.fzs.tul.cz}
+}
+
+\newcommand{\TUL@CXI@setup}{\switchTULstyle{CXI}%
+\renewcommand{\ENTULsoucast}{Institute for Nanomaterials,
+    Advanced Technologies and Innovation}%
+\renewcommand{\CZTULsoucast}{\'Ustav pro nanomateri\'aly,
+    pokro\v cil\'e technologie a inovace}%
+\TULphone{+420 485 353 852}
+\TULmail{cxi@tul.cz}
+\renewcommand{\TUL@URL}{www.cxi.tul.cz}
+}
+
+% volby baliku
+\DeclareOption{EN}{\renewcommand{\TUL@nguage}{EN}}
+
+\DeclareOption{FS}{\TUL@FS@setup}
+\DeclareOption{FT}{\TUL@FT@setup}
+\DeclareOption{FP}{\TUL@FP@setup}
+\DeclareOption{EF}{\TUL@EF@setup}
+\DeclareOption{FE}{\TUL@EF@setup}   % nedokumentovana, pro pouziti s databazemi obsahujicimi FE
+\DeclareOption{FUA}{\TUL@FUA@setup}
+\DeclareOption{FA}{\TUL@FUA@setup}  % pro zpetnou kompatibilitu
+\DeclareOption{FM}{\TUL@FM@setup}
+\DeclareOption{FZS}{\TUL@FZS@setup}
+\DeclareOption{CXI}{\TUL@CXI@setup}
+
+\DeclareOption{bwtitles}{
+    \renewcommand{\titlecolor}{black}
+}
+
+\DeclareOption{bw}{
+    \renewcommand{\tulcolor}{black!50}
+    \renewcommand{\titlecolor}{black}
+    \renewcommand{\symbolTUL}{\symbolTULbw}
+    \renewcommand{\symbolFS}{\symbolTULbw}
+    \renewcommand{\symbolFT}{\symbolTULbw}
+    \renewcommand{\symbolFP}{\symbolTULbw}
+    \renewcommand{\symbolEF}{\symbolTULbw}
+    \renewcommand{\symbolFUA}{\symbolTULbw}
+    \renewcommand{\symbolFM}{\symbolTULbw}
+    \renewcommand{\symbolFZS}{\symbolTULbw}
+    \renewcommand{\symbolCXI}{\symbolTULbw}
+    \renewcommand{\znakTUL}{\symbolTULbw}
+    \renewcommand{\logoTUL}{\includegraphics[scale=0.3]{logo-tul-bw}}
+    \renewcommand{\logoTULtext}{\includegraphics[scale=0.3]{logo-tul-txt-bw}}
+    \renewcommand{\logoTULalt}{\includegraphics[scale=0.3]{logo-tul-3r-bw}}
+    \renewcommand{\logoFS}{\includegraphics[scale=0.3]{logo-fs-bw}}
+    \renewcommand{\logoFStext}{\includegraphics[scale=0.3]{logo-fs-txt-bw}}
+    \renewcommand{\logoFT}{\includegraphics[scale=0.3]{logo-ft-bw}}
+    \renewcommand{\logoFTtext}{\includegraphics[scale=0.3]{logo-ft-txt-bw}}
+    \renewcommand{\logoFP}{\includegraphics[scale=0.3]{logo-fp-bw}}
+    \renewcommand{\logoFPtext}{\includegraphics[scale=0.3]{logo-fp-txt-bw}}
+    \renewcommand{\logoEF}{\includegraphics[scale=0.3]{logo-ef-bw}}
+    \renewcommand{\logoEFtext}{\includegraphics[scale=0.3]{logo-ef-txt-bw}}
+    \renewcommand{\logoFUA}{\includegraphics[scale=0.3]{logo-fua-bw}}
+    \renewcommand{\logoFUAtext}{\includegraphics[scale=0.3]{logo-fua-txt-bw}}
+    \renewcommand{\logoFM}{\includegraphics[scale=0.3]{logo-fm-bw}}
+    \renewcommand{\logoFMtext}{\includegraphics[scale=0.3]{logo-fm-txt-bw}}
+    \renewcommand{\logoFZS}{\includegraphics[scale=0.3]{logo-fzs-bw}}
+    \renewcommand{\logoFZStext}{\includegraphics[scale=0.3]{logo-fzs-txt-bw}}
+    \renewcommand{\logoCXI}{\includegraphics[scale=0.3]{logo-cxi-bw}}
+    \renewcommand{\logoCXItext}{\includegraphics[scale=0.3]{logo-cxi-txt-bw}}
+    \renewcommand{\ENlogoTUL}{\includegraphics[scale=0.3]{logo-tul-bw}}
+    \renewcommand{\ENlogoTULtext}{\includegraphics[scale=0.3]{logo-tul-txt-en-bw}}
+    \renewcommand{\ENlogoTULalt}{\includegraphics[scale=0.3]{logo-tul-3r-en-bw}}
+    \renewcommand{\ENlogoFS}{\includegraphics[scale=0.3]{logo-fs-en-bw}}
+    \renewcommand{\ENlogoFStext}{\includegraphics[scale=0.3]{logo-fs-txt-en-bw}}
+    \renewcommand{\ENlogoFT}{\includegraphics[scale=0.3]{logo-ft-bw}}
+    \renewcommand{\ENlogoFTtext}{\includegraphics[scale=0.3]{logo-ft-txt-en-bw}}
+    \renewcommand{\ENlogoFP}{\includegraphics[scale=0.3]{logo-fp-en-bw}}
+    \renewcommand{\ENlogoFPtext}{\includegraphics[scale=0.3]{logo-fp-txt-en-bw}}
+    \renewcommand{\ENlogoEF}{\includegraphics[scale=0.3]{logo-ef-en-bw}}
+    \renewcommand{\ENlogoEFtext}{\includegraphics[scale=0.3]{logo-ef-txt-en-bw}}
+    \renewcommand{\ENlogoFUA}{\includegraphics[scale=0.3]{logo-fua-en-bw}}
+    \renewcommand{\ENlogoFUAtext}{\includegraphics[scale=0.3]{logo-fua-txt-en-bw}}
+    \renewcommand{\ENlogoFM}{\includegraphics[scale=0.3]{logo-fm-bw}}
+    \renewcommand{\ENlogoFMtext}{\includegraphics[scale=0.3]{logo-fm-txt-en-bw}}
+    \renewcommand{\ENlogoFZS}{\includegraphics[scale=0.3]{logo-fzs-en-bw}}
+    \renewcommand{\ENlogoFZStext}{\includegraphics[scale=0.3]{logo-fzs-txt-en-bw}}
+    \renewcommand{\ENlogoCXI}{\includegraphics[scale=0.3]{logo-cxi-bw}}
+    \renewcommand{\ENlogoCXItext}{\includegraphics[scale=0.3]{logo-cxi-txt-en-bw}}
+}
+
+\DeclareOption{fonts}{\setboolean{TULf@nts}{true}}
+
+\DeclareOption{localfonts}{\setboolean{TULf@nts}{true}\setboolean{TULl@calf@nts}{true}}
+
+\DeclareOption{sfheadings}{\renewcommand{\TUL@headfnt}{\sffamily\bfseries}}
+
+\DeclareOption{noheader}{\noTULheader}
+
+\ProcessOptions
+
+\ifthenelse{\boolean{TUL@header}}{\pagestyle{TUL}}{\pagestyle{TULfooter}}
+
+% aktivace pisem
+\ifthenelse{\boolean{TULf@nts}}{
+    \RequirePackage{fontspec}
+    \ifthenelse{\boolean{TULl@calf@nts}}{
+        \newfontfamily\TULmono{TULMono-Regular.otf}[Path=./pisma/,
+            BoldFont=TULMono-Bold.otf,
+            Ligatures=Contextual]
+        \newfontfamily\TULmonoHairline{TULMono-Hairline.otf}[Path=./pisma/,
+            Ligatures=Contextual]
+        \newfontfamily\TULmonoSingleline{TULMono-SingleLine.otf}[Path=./pisma/,
+            Ligatures=Contextual]
+        \setmainfont{Inter-Regular.otf}[Path=./pisma/,
+            BoldFont=Inter-Bold.otf,
+            ItalicFont=Inter-Italic.otf,
+            BoldItalicFont=Inter-BoldItalic.otf,
+            Mapping=tex-text]
+        \setsansfont{Inter-Regular.otf}[Path=./pisma/,
+            BoldFont=Inter-Bold.otf,
+            ItalicFont=Inter-Italic.otf,
+            BoldItalicFont=Inter-BoldItalic.otf,
+            Mapping=tex-text]
+        \setmonofont{NotoSansMono-Regular.ttf}[Path=./pisma/,
+            BoldFont=NotoSansMono-Bold.ttf]
+    }{
+        \newfontfamily\TULmono{TUL Mono}[Ligatures=Contextual]
+        \newfontfamily\TULmonoHairline{TUL Mono Hairline}[Ligatures=Contextual]
+        \newfontfamily\TULmonoSingleline{TUL Mono SingleLine}[Ligatures=Contextual]
+        \setmainfont{Inter}[Mapping=tex-text]
+        \setsansfont{Inter}[Mapping=tex-text]
+        \setmonofont{Noto Sans Mono}
+    }
+}{
+    \newcommand\TULmono{\sffamily\bfseries}
+}
+

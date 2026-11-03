@@ -33,3 +33,23 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+
+# LaTeX temporary / build files
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.idx
+*.ilg
+*.ind
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.fls
+*.fdb_latexmk
