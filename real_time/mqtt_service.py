@@ -145,7 +145,18 @@ class MQTTRealtimeService:
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
 
-    def _on_connect(self, client: Any, userdata: Any, flags: Any, rc: Any, properties: Any = None) -> None:
+    def _on_connect(self, client: Any, userdata: Any, *args: Any, **kwargs: Any) -> None:
+        # VERSION2 signature: (client, userdata, flags, reason_code, properties)
+        # VERSION1 signature: (client, userdata, flags, rc)
+        rc = None
+        if len(args) >= 2:
+            rc = args[1]
+        elif len(args) == 1:
+            rc = args[0]
+        elif "reason_code" in kwargs:
+            rc = kwargs["reason_code"]
+        elif "rc" in kwargs:
+            rc = kwargs["rc"]
         rc_code = rc if isinstance(rc, int) else getattr(rc, "value", rc)
         if rc_code == 0:
             logger.info("Connected to MQTT broker %s:%d. Subscribing to %s...", self.broker_host, self.broker_port, self.topic_tx)
@@ -155,7 +166,18 @@ class MQTTRealtimeService:
             logger.error("Failed to connect to MQTT broker, return code: %s", rc_code)
             record_system_event("ERROR", "MQTT_CONNECT_FAIL", f"Return code: {rc_code}")
 
-    def _on_disconnect(self, client: Any, userdata: Any, rc: Any, properties: Any = None) -> None:
+    def _on_disconnect(self, client: Any, userdata: Any, *args: Any, **kwargs: Any) -> None:
+        # VERSION2 signature: (client, userdata, disconnect_flags, reason_code, properties)
+        # VERSION1 signature: (client, userdata, rc)
+        rc = None
+        if len(args) >= 2:
+            rc = args[1]
+        elif len(args) == 1:
+            rc = args[0]
+        elif "reason_code" in kwargs:
+            rc = kwargs["reason_code"]
+        elif "rc" in kwargs:
+            rc = kwargs["rc"]
         rc_code = rc if isinstance(rc, int) else getattr(rc, "value", rc)
         logger.warning("Disconnected from MQTT broker (code %s). Automatic reconnect engaged.", rc_code)
         record_system_event("WARN", "MQTT_DISCONNECT", f"Disconnected with code {rc_code}")
