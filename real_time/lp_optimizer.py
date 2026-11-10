@@ -98,8 +98,74 @@ class PlannedHourAction:
     effective_sell_czk: float
 
 
+def compute_adaptive_risk_metrics_rt(
+    t: int,
+    t_steps: int,
+    spot_prices: np.ndarray,
+    p_buy_pred: np.ndarray,
+    p_sell_pred: np.ndarray,
+    pv_pred: np.ndarray,
+    load_pred: np.ndarray,
+    cloud_cover: np.ndarray,
+    discharge_eff: float,
+    charge_eff: float,
+    degradation_cost: float,
+) -> tuple[float, float]:
+    """Compute (q_star, reserved_solar_kwh) using Newsvendor quantile optimization and cloud entropy."""
+    p_buy_cur = float(p_buy_pred[t])
+    p_sell_cur = float(p_sell_pred[t])
+
+    # 1. Economic Risk: Future Peak Opportunity vs Displaced Solar Cost (Newsvendor Fractile)
+    future_steps = range(t + 1, t_steps)
+    if not future_steps or spot_prices[t] < 0:
+        q_star = 1.0 if spot_prices[t] < 0 else 0.0
+    else:
+        peak_benefit = 0.0
+        for f_t in future_steps:
+            benefit_f = max(float(p_buy_pred[f_t]), float(p_sell_pred[f_t]))
+            if benefit_f > peak_benefit:
+                peak_benefit = benefit_f
+
+        # Underage cost: financial loss of having an empty battery during peak
+        net_spread = (peak_benefit * discharge_eff) - (p_buy_cur / charge_eff) - (2.0 * degradation_cost)
+        c_u = max(0.0, net_spread)
+
+        # Overage cost: loss of buying grid energy that gets displaced by solar to low-tariff export
+        c_o = max(0.5, p_buy_cur - p_sell_cur + (2.0 * degradation_cost))
+
+        if c_u <= 1e-4:
+            q_star = 0.0
+        else:
+            q_star = float(c_u / (c_u + c_o))
+            q_star = min(1.0, max(0.0, q_star))
+
+    # 2. Weather Uncertainty & Cloud Entropy
+    future_surplus_mean = 0.0
+    future_surplus_var = 0.0
+    for k in range(t, t_steps):
+        cc = float(cloud_cover[k]) / 100.0 if k < len(cloud_cover) else 0.5
+        cc = min(1.0, max(0.0, cc))
+        cloud_entropy = 4.0 * cc * (1.0 - cc)
+
+        pv_k = max(0.0, float(pv_pred[k]))
+        load_k = max(0.0, float(load_pred[k]))
+        surplus_k = max(0.0, pv_k - load_k)
+
+        sigma_k = pv_k * (0.10 + 0.40 * cloud_entropy)
+        future_surplus_mean += surplus_k
+        future_surplus_var += (sigma_k ** 2)
+
+    sigma_total = np.sqrt(future_surplus_var)
+
+    # 3. Dynamic Quantile Headroom Reservation
+    z_score = 1.65 * (1.0 - 1.8 * q_star)
+    reserved_solar_kwh = max(0.0, future_surplus_mean + z_score * sigma_total)
+
+    return q_star, reserved_solar_kwh
+
+
 class LpArbitrageOptimizerRT:
-    """Real-Time Linear Programming Arbitrage Optimizer."""
+    """Real-Time Linear Programming Arbitrage Optimizer with Adaptive Stochastic Risk."""
 
     def __init__(self) -> None:
         self.capacity_kwh = BATTERY_CAPACITY_KWH
@@ -119,8 +185,9 @@ class LpArbitrageOptimizerRT:
         pv_forecast_kw: list[float] | np.ndarray,
         load_forecast_kw: list[float] | np.ndarray,
         hours_of_day: list[int] | np.ndarray,
+        cloud_cover_pct: list[float] | np.ndarray | None = None,
     ) -> dict[int, PlannedHourAction]:
-        """Solve 24h rolling horizon LP and return optimal hourly schedule."""
+        """Solve 24h rolling horizon LP with adaptive risk and return optimal hourly schedule."""
         t_steps = min(len(spot_prices), len(pv_forecast_kw), len(load_forecast_kw), MPC_HORIZON_HOURS)
         if t_steps == 0:
             return {}
@@ -130,33 +197,23 @@ class LpArbitrageOptimizerRT:
         loads = np.maximum(0.0, np.asarray(load_forecast_kw[:t_steps], dtype=float))
         hours = np.asarray(hours_of_day[:t_steps], dtype=int)
 
+        if cloud_cover_pct is not None and len(cloud_cover_pct) > 0:
+            cloud_cover = np.asarray(cloud_cover_pct[:t_steps], dtype=float)
+        else:
+            cloud_cover = np.full(t_steps, 50.0)
+
         p_buy_pred = compute_effective_buy_price(spots)
         p_sell_pred = compute_effective_sell_price(spots)
 
         cur_soc = float(np.clip(current_soc_kwh, self.soc_min_kwh, self.soc_max_kwh))
-        headroom = self.soc_max_kwh - cur_soc
 
-        # Conservative forecasts with safety buffers
-        pv_safe = pvs * FORECAST_PV_SAFETY_FACTOR
-        load_safe = loads * FORECAST_LOAD_SAFETY_FACTOR
-        solar_surplus_safe = float(np.sum(np.maximum(0.0, pv_safe - load_safe)))
-
-        # Sunny day detection: conservative surplus ample to fill battery headroom
-        is_sunny_day = solar_surplus_safe >= max(1.5, headroom * 0.85)
-
-        # Peak solar hour in upcoming daylight period
-        daylight_indices = [t for t in range(t_steps) if 6 <= hours[t] <= 18 and pvs[t] > 0.5]
-        first_peak_idx = daylight_indices[int(np.argmax([pvs[t] for t in daylight_indices]))] if daylight_indices else -1
-
-        # Curtailment risk & negative prices
-        curtailment_risk = max(0.0, solar_surplus_safe - headroom)
-        has_negative_prices = any(p_sell_pred[t] < 0 for t in range(t_steps))
-
-        prob = pl.LpProblem("Microgrid_Arbitrage_RT_MPC", pl.LpMinimize)
+        prob = pl.LpProblem("Microgrid_Arbitrage_RT_MPC_Adaptive", pl.LpMinimize)
 
         # Decision variables
         buy = [pl.LpVariable(f"b_{t}", lowBound=0.0, upBound=self.grid_limit) for t in range(t_steps)]
         sell = [pl.LpVariable(f"s_{t}", lowBound=0.0, upBound=self.grid_limit) for t in range(t_steps)]
+        ch_pv = [pl.LpVariable(f"cpv_{t}", lowBound=0.0, upBound=self.power_max_kw) for t in range(t_steps)]
+        ch_grid = [pl.LpVariable(f"cgrid_{t}", lowBound=0.0, upBound=self.power_max_kw) for t in range(t_steps)]
         ch = [pl.LpVariable(f"c_{t}", lowBound=0.0, upBound=self.power_max_kw) for t in range(t_steps)]
         dis = [pl.LpVariable(f"d_{t}", lowBound=0.0, upBound=self.power_max_kw) for t in range(t_steps)]
         soc = [pl.LpVariable(f"soc_{t}", lowBound=self.soc_min_kwh, upBound=self.soc_max_kwh) for t in range(t_steps)]
@@ -168,6 +225,8 @@ class LpArbitrageOptimizerRT:
         terminal_val = max(0.5, min(avoided_purchase_val, export_val * 1.5))
         cost_terms = [-terminal_val * soc[t_steps - 1]]
 
+        cum_grid_charge_expr = []
+
         for t in range(t_steps):
             cost_terms.append(buy[t] * float(p_buy_pred[t]))
             cost_terms.append(-sell[t] * float(p_sell_pred[t]))
@@ -177,6 +236,11 @@ class LpArbitrageOptimizerRT:
             # Instantaneous balance: buy + pv + dis == load + sell + ch + curt
             prob += buy[t] + float(pvs[t]) + dis[t] == float(loads[t]) + sell[t] + ch[t] + curt[t]
 
+            # Charging composition: solar surplus is free, grid charging is for arbitrage
+            prob += ch[t] == ch_pv[t] + ch_grid[t]
+            pv_surplus_t = max(0.0, float(pvs[t]) - float(loads[t]))
+            prob += ch_pv[t] <= pv_surplus_t
+
             # Battery SoC continuity equation
             prev = cur_soc if t == 0 else soc[t - 1]
             prob += soc[t] == prev + self.charge_eff * ch[t] - dis[t] * self.inv_discharge_eff
@@ -185,26 +249,24 @@ class LpArbitrageOptimizerRT:
             if p_sell_pred[t] < 0 and ALLOW_CURTAILMENT:
                 prob += sell[t] == 0.0
 
-            # Daytime grid charging restriction: with positive spot prices, charge only from PV surplus
-            if (6 <= hours[t] <= 21) and (spots[t] >= 0):
-                surplus_pv = max(0.0, float(pvs[t]) - float(loads[t]))
-                prob += ch[t] <= surplus_pv
+            # ADAPTIVE RISK CONSTRAINT (Replaces all hardcoded clock-hour heuristics)
+            q_star, reserved_solar = compute_adaptive_risk_metrics_rt(
+                t, t_steps, spots, p_buy_pred, p_sell_pred, pvs, loads, cloud_cover,
+                self.discharge_eff, self.charge_eff, self.degradation_cost
+            )
 
-            # Rule 1: Zero Grid Pre-Charge before a sunny day (00:00 - 05:00)
-            if is_sunny_day and (0 <= hours[t] <= 5) and (first_peak_idx > t):
-                prob += ch[t] <= float(pvs[t])
+            cum_grid_charge_expr.append(ch_grid[t])
 
-            # Rule 2: Guard Solar Pre-Flush - early morning (04:00 - 09:00)
-            if (4 <= hours[t] <= 9) and (first_peak_idx > t):
-                allow_preflush = (
-                    (curtailment_risk >= PREFLUSH_MIN_SURPLUS_KWH)
-                    and has_negative_prices
-                    and (p_sell_pred[t] >= PREFLUSH_MIN_SELL_PRICE_CZK)
-                )
-                if not allow_preflush:
-                    prob += sell[t] <= float(pvs[t])
-                else:
-                    prob += sell[t] <= float(pvs[t]) + curtailment_risk
+            if spots[t] < 0:
+                # Negative price: unlimited grid charge (grid pays us)
+                pass
+            elif q_star <= 0.0:
+                # No profitable arbitrage: strictly zero grid charging
+                prob += ch_grid[t] == 0.0
+            else:
+                # Profitable arbitrage exists: cumulative grid pre-charge must leave space for solar
+                max_grid_headroom = max(0.0, (self.soc_max_kwh - reserved_solar - cur_soc) / self.charge_eff)
+                prob += pl.lpSum(cum_grid_charge_expr) <= max_grid_headroom
 
         prob += pl.lpSum(cost_terms)
 
@@ -219,6 +281,7 @@ class LpArbitrageOptimizerRT:
         for t in range(t_steps):
             h = int(hours[t])
             val_ch = max(0.0, float(pl.value(ch[t])) if pl.value(ch[t]) is not None else 0.0)
+            val_ch_grid = max(0.0, float(pl.value(ch_grid[t])) if pl.value(ch_grid[t]) is not None else 0.0)
             val_dis = max(0.0, float(pl.value(dis[t])) if pl.value(dis[t]) is not None else 0.0)
             val_buy = max(0.0, float(pl.value(buy[t])) if pl.value(buy[t]) is not None else 0.0)
             val_sell = max(0.0, float(pl.value(sell[t])) if pl.value(sell[t]) is not None else 0.0)
@@ -233,9 +296,12 @@ class LpArbitrageOptimizerRT:
             if val_ch > 0.05:
                 target_power_w = round(val_ch * 1000.0, 0)
                 # Did LP plan grid import charging?
-                if val_buy > 0.1:
+                if val_ch_grid > 0.05:
                     cmd = CzechCommand.CHARGE_GRID
-                    reason = CzechReason.LOW_PRICE
+                    if spots[t] < 0:
+                        reason = CzechReason.LOW_PRICE
+                    else:
+                        reason = "Arbitrážní přednabití (výhodný nákup)"
                 else:
                     cmd = CzechCommand.CHARGE_PV
                     reason = CzechReason.PV_SURPLUS

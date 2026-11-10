@@ -107,7 +107,10 @@ class FoxEssBatterySimulator:
                 p_bat_w = 0.0
             else:
                 p_bat_w = -actual_w  # Negative = charging
-                effective_reason = CzechReason.LOW_PRICE
+                if price_czk_kwh < 0:
+                    effective_reason = CzechReason.LOW_PRICE
+                else:
+                    effective_reason = "Arbitrážní přednabití (výhodný nákup)" 
 
         elif command == CzechCommand.DISCHARGE_GRID:
             # Arbitrage export to grid
