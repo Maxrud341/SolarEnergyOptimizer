@@ -50,23 +50,24 @@ def get_tomorrow_plan(target_date: dt.date | None = None) -> None:
     print(f"🔮 ПЛАН ОПТИМИЗАЦИИ И АРБИТРАЖА НА: {target_date.strftime('%d.%m.%Y (%A)')}")
     print("=" * 80)
 
-    # 1. Fetch spot prices
+    # 1. Fetch spot prices (15-minute resolution)
     pf = SpotPriceFetcher()
-    prices_df = pf.get_hourly_price_vector(start_dt=start_dt, hours=24)
+    prices_df = pf.get_price_vector_15min(start_dt=start_dt, hours=24)
 
-    if prices_df.empty or len(prices_df) < 12:
+    if prices_df.empty or len(prices_df) < 48:
         print(f"\n⚠️  Цены OTE ČR на {target_date.strftime('%d.%m.%Y')} еще не опубликованы.")
         print("   Биржевой аукцион закрывается ежедневно в 13:00, публикация в 13:10–13:15 CET.")
         print("   Запустите скрипт после 13:15.\n")
         return
 
-    # 2. Fetch solar forecast
+    # 2. Fetch solar forecast (15-minute interpolated)
     wf = SolarWeatherFetcher()
-    pv_df = wf.get_pv_forecast_vector(start_dt=start_dt, hours=24)
-    pv_forecast = pv_df["pv_forecast_kw"].tolist() if not pv_df.empty else [0.0] * 24
+    pv_df = wf.get_pv_forecast_vector_15min(start_dt=start_dt, hours=24)
+    pv_forecast = pv_df["pv_forecast_kw"].tolist() if not pv_df.empty else [0.0] * len(prices_df)
 
     # 3. Typical household load profile (kW)
     hours_of_day = [r["start"].hour for _, r in prices_df.iterrows()]
+    minute_slots = [r["start"].minute // 15 for _, r in prices_df.iterrows()]
     spot_prices = prices_df["price_czk_kwh"].tolist()
 
     load_forecast: list[float] = []
@@ -78,7 +79,7 @@ def get_tomorrow_plan(target_date: dt.date | None = None) -> None:
         else:
             load_forecast.append(0.25)
 
-    # 4. Run Linear Programming Optimizer with Adaptive Risk
+    # 4. Run Linear Programming Optimizer with Adaptive Risk (15-min intervals)
     opt = LpArbitrageOptimizerRT()
     cloud_forecast = pv_df["cloud_pct"].tolist() if "cloud_pct" in pv_df.columns else None
     schedule = opt.solve_horizon(
@@ -88,34 +89,86 @@ def get_tomorrow_plan(target_date: dt.date | None = None) -> None:
         load_forecast_kw=load_forecast,
         hours_of_day=hours_of_day,
         cloud_cover_pct=cloud_forecast,
+        dt_hours=0.25,
+        minute_slots=minute_slots,
     )
 
     # Summary Stats
-    total_pv_kwh = sum(pv_forecast)
-    total_load_kwh = sum(load_forecast)
+    total_pv_kwh = sum(pv_forecast) * 0.25
+    total_load_kwh = sum(load_forecast) * 0.25
     min_price_idx = int(prices_df["price_czk_kwh"].idxmin())
     max_price_idx = int(prices_df["price_czk_kwh"].idxmax())
     min_price_row = prices_df.iloc[min_price_idx]
     max_price_row = prices_df.iloc[max_price_idx]
 
-    print("\n📊 Сводка прогноза:")
+    print("\n📊 Сводка прогноза (15-минутная сетка MTU OTE ČR):")
     print(f"  ☀️ Ожидаемая солнечная генерация (FVE):   {total_pv_kwh:.2f} кВт·ч")
     print(f"  🏠 Ожидаемое базовое потребление дома:   {total_load_kwh:.2f} кВт·ч")
-    print(f"  📉 Самый дешевый час (спот):             {min_price_row['start'].strftime('%H:%M')} -> {min_price_row['price_czk_kwh']:.2f} Kč/кВт·ч")
-    print(f"  📈 Самый дорогой час (пик):              {max_price_row['start'].strftime('%H:%M')} -> {max_price_row['price_czk_kwh']:.2f} Kč/кВт·ч")
+    print(f"  📉 Самый дешевый слот (спот):            {min_price_row['start'].strftime('%H:%M')} -> {min_price_row['price_czk_kwh']:.2f} Kč/кВт·ч")
+    print(f"  📈 Самый дорогой слот (пик):             {max_price_row['start'].strftime('%H:%M')} -> {max_price_row['price_czk_kwh']:.2f} Kč/кВт·ч")
     print(f"  ⚡ Спред спотовой цены:                  {(max_price_row['price_czk_kwh'] - min_price_row['price_czk_kwh']):.2f} Kč/кВт·ч")
     print("-" * 80)
 
-    # Hourly Table
-    print(f"{'Час':^5} | {'Спот (Kč)':^9} | {'FVE (кВт)':^9} | {'Дом (кВт)':^9} | {'Команда инвертора':^25} | {'SoC (%)':^8} | {'Обоснование':^30}")
+    # Interval Table (Grouped for readability)
+    print(f"{'Интервал':^13} | {'Спот (Kč)':^11} | {'Команда инвертора':^26} | {'SoC (%)':^8} | {'Обоснование':^35}")
     print("-" * 115)
 
-    for h, a in sorted(schedule.items()):
-        price = spot_prices[h]
-        pv = pv_forecast[h]
-        load = load_forecast[h]
-        cmd_str = f"{a.command} ({a.target_power_w:4.0f}W)" if a.target_power_w > 0 else a.command
-        print(f"{h:02d}:00 | {price:7.2f}   | {pv:7.2f}   | {load:7.2f}   | {cmd_str:25s} | {a.planned_end_soc_pct:6.1f}% | {a.reason}")
+    intervals: list[dict[str, Any]] = []
+    cur_group: dict[str, Any] | None = None
+
+    for idx, (_, a) in enumerate(sorted(schedule.items())):
+        row = prices_df.iloc[idx]
+        cmd = a.command
+        pwr = a.target_power_w
+        reason = a.reason
+        soc = a.planned_end_soc_pct
+        price = spot_prices[idx]
+        t_slot_start = row["start"]
+        t_slot_end = t_slot_start + dt.timedelta(minutes=15)
+
+        if cur_group is None:
+            cur_group = {
+                "start": t_slot_start,
+                "end": t_slot_end,
+                "cmd": cmd,
+                "pwr": pwr,
+                "reason": reason,
+                "min_price": price,
+                "max_price": price,
+                "end_soc": soc,
+            }
+        elif cur_group["cmd"] == cmd and abs(cur_group["pwr"] - pwr) < 100:
+            cur_group["end"] = t_slot_end
+            cur_group["min_price"] = min(cur_group["min_price"], price)
+            cur_group["max_price"] = max(cur_group["max_price"], price)
+            cur_group["end_soc"] = soc
+        else:
+            intervals.append(cur_group)
+            cur_group = {
+                "start": t_slot_start,
+                "end": t_slot_end,
+                "cmd": cmd,
+                "pwr": pwr,
+                "reason": reason,
+                "min_price": price,
+                "max_price": price,
+                "end_soc": soc,
+            }
+    if cur_group:
+        intervals.append(cur_group)
+
+    for inv in intervals:
+        s_str = inv["start"].strftime("%H:%M")
+        e_str = inv["end"].strftime("%H:%M")
+        p_min = inv["min_price"]
+        p_max = inv["max_price"]
+        p_str = f"{p_min:5.2f}" if p_min == p_max else f"{p_min:4.2f}-{p_max:4.2f}"
+        cmd = inv["cmd"]
+        pwr = inv["pwr"]
+        cmd_str = f"{cmd} ({pwr:4.0f}W)" if pwr > 0 else cmd
+        soc = inv["end_soc"]
+        reason = inv["reason"]
+        print(f"{s_str} - {e_str} | {p_str:>9s}   | {cmd_str:26s} | {soc:6.1f}% | {reason}")
 
     print("-" * 115)
     print("💡 Пояснение стратегии:")

@@ -175,3 +175,55 @@ def test_battery_first_closed_loop_when_home_exceeds_pv():
     assert step_res.p_bat_w > 0.0  # Positive = battery discharge
     assert abs(step_res.p_grid_w) < 1.0  # Zero grid purchase!
 
+
+def test_15min_slot_resolution_and_hourly_recalculation():
+    """Verify 15-minute planning granularity and hourly PuLP recalculation."""
+    from real_time.price_fetcher import SpotPriceFetcher
+    from real_time.weather_fetcher import SolarWeatherFetcher
+
+    pf = SpotPriceFetcher()
+    wf = SolarWeatherFetcher()
+
+    t_ref = dt.datetime(2026, 11, 11, 6, 8, 0)
+    prices_15m = pf.get_price_vector_15min(start_dt=t_ref, hours=4)
+    pv_15m = wf.get_pv_forecast_vector_15min(start_dt=t_ref, hours=4)
+
+    assert len(prices_15m) == 16  # 4 hours * 4 slots
+    assert len(pv_15m) == 16
+    assert prices_15m.iloc[0]["start"].minute == 0  # 06:00 slot preserved
+    assert prices_15m.iloc[1]["start"].minute == 15
+
+    # Controller dispatch: slot 0 (06:00-06:15) vs slot 1 (06:15-06:30)
+    controller = RealTimeController(initial_soc=20.0)
+
+    # Slot 0 at 06:05: should charge at 4.54 Kč valley
+    cmd_0, res_0 = controller.decide_tick_action(
+        current_time_dt=dt.datetime(2026, 11, 11, 6, 5, 0),
+        price_czk=4.54,
+        p_home_w=250.0,
+        p_pv_w=0.0,
+        real_soc=20.0,
+        dt_seconds=30.0,
+    )
+    assert cmd_0["prikaz"] == CzechCommand.CHARGE_GRID
+    assert cmd_0["vykon_w"] > 3000
+    schedule_key_hour6 = controller._last_schedule_key
+    assert schedule_key_hour6 == "2026-11-11-06"
+
+    # Slot 1 at 06:20: controller looks up (6, 1) slot without recalculating PuLP
+    controller.battery_sim.set_soc(99.8)  # Battery topped up
+    cmd_1, res_1 = controller.decide_tick_action(
+        current_time_dt=dt.datetime(2026, 11, 11, 6, 20, 0),
+        price_czk=5.63,
+        p_home_w=250.0,
+        p_pv_w=0.0,
+        real_soc=99.8,
+        dt_seconds=30.0,
+    )
+    # PuLP was NOT recalculated (schedule key unchanged!)
+    assert controller._last_schedule_key == schedule_key_hour6
+    # Hardware protection ceiling engages at 99.8% to prevent overcharging
+    assert cmd_1["prikaz"] == CzechCommand.STANDBY
+    assert cmd_1["duvod"] == CzechReason.BATTERY_PROTECT_MAX
+    assert cmd_1["vykon_w"] == 0
+

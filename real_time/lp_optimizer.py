@@ -80,9 +80,28 @@ def compute_effective_sell_price(spot_price: float | np.ndarray) -> float | np.n
     return spot_price - EXPORT_FEE_CZK_PER_KWH
 
 
+class ScheduleDict(dict):
+    """Dictionary supporting lookup by (hour, minute_slot) tuple or by integer hour."""
+
+    def __getitem__(self, key: Any) -> Any:
+        if isinstance(key, int):
+            return super().__getitem__((key, 0))
+        return super().__getitem__(key)
+
+    def get(self, key: Any, default: Any = None) -> Any:
+        if isinstance(key, int):
+            return super().get((key, 0), default)
+        return super().get(key, default)
+
+    def __contains__(self, key: Any) -> bool:
+        if isinstance(key, int):
+            return super().__contains__((key, 0))
+        return super().__contains__(key)
+
+
 @dataclass
 class PlannedHourAction:
-    """Optimal directive for a specific hour of the MPC planning horizon."""
+    """Optimal directive for a specific slot of the MPC planning horizon."""
 
     hour: int
     command: str
@@ -96,6 +115,8 @@ class PlannedHourAction:
     planned_end_soc_pct: float
     effective_buy_czk: float
     effective_sell_czk: float
+    minute_slot: int = 0
+    time_str: str = ""
 
 
 def compute_adaptive_risk_metrics_rt(
@@ -110,6 +131,7 @@ def compute_adaptive_risk_metrics_rt(
     discharge_eff: float,
     charge_eff: float,
     degradation_cost: float,
+    dt_hours: float = 1.0,
 ) -> tuple[float, float]:
     """Compute (q_star, reserved_solar_kwh) using Newsvendor quantile optimization and cloud entropy."""
     p_buy_cur = float(p_buy_pred[t])
@@ -149,9 +171,9 @@ def compute_adaptive_risk_metrics_rt(
 
         pv_k = max(0.0, float(pv_pred[k]))
         load_k = max(0.0, float(load_pred[k]))
-        surplus_k = max(0.0, pv_k - load_k)
+        surplus_k = max(0.0, pv_k - load_k) * dt_hours
 
-        sigma_k = pv_k * (0.10 + 0.40 * cloud_entropy)
+        sigma_k = pv_k * (0.10 + 0.40 * cloud_entropy) * dt_hours
         future_surplus_mean += surplus_k
         future_surplus_var += (sigma_k ** 2)
 
@@ -186,9 +208,12 @@ class LpArbitrageOptimizerRT:
         load_forecast_kw: list[float] | np.ndarray,
         hours_of_day: list[int] | np.ndarray,
         cloud_cover_pct: list[float] | np.ndarray | None = None,
-    ) -> dict[int, PlannedHourAction]:
-        """Solve 24h rolling horizon LP with adaptive risk and return optimal hourly schedule."""
-        t_steps = min(len(spot_prices), len(pv_forecast_kw), len(load_forecast_kw), MPC_HORIZON_HOURS)
+        dt_hours: float = 1.0,
+        minute_slots: list[int] | None = None,
+    ) -> dict[Any, PlannedHourAction]:
+        """Solve rolling horizon LP with adaptive risk and return optimal schedule (15-min or 1-hour)."""
+        max_steps = int(MPC_HORIZON_HOURS / dt_hours) if dt_hours > 0 else 24
+        t_steps = min(len(spot_prices), len(pv_forecast_kw), len(load_forecast_kw), max_steps)
         if t_steps == 0:
             return {}
 
@@ -196,6 +221,7 @@ class LpArbitrageOptimizerRT:
         pvs = np.maximum(0.0, np.asarray(pv_forecast_kw[:t_steps], dtype=float))
         loads = np.maximum(0.0, np.asarray(load_forecast_kw[:t_steps], dtype=float))
         hours = np.asarray(hours_of_day[:t_steps], dtype=int)
+        m_slots = np.asarray(minute_slots[:t_steps], dtype=int) if minute_slots is not None else np.zeros(t_steps, dtype=int)
 
         if cloud_cover_pct is not None and len(cloud_cover_pct) > 0:
             cloud_cover = np.asarray(cloud_cover_pct[:t_steps], dtype=float)
@@ -228,10 +254,10 @@ class LpArbitrageOptimizerRT:
         cum_grid_charge_expr = []
 
         for t in range(t_steps):
-            cost_terms.append(buy[t] * float(p_buy_pred[t]))
-            cost_terms.append(-sell[t] * float(p_sell_pred[t]))
-            cost_terms.append(self.degradation_cost * (ch[t] + dis[t]))
-            cost_terms.append(0.005 * curt[t])
+            cost_terms.append(buy[t] * float(p_buy_pred[t]) * dt_hours)
+            cost_terms.append(-sell[t] * float(p_sell_pred[t]) * dt_hours)
+            cost_terms.append(self.degradation_cost * (ch[t] + dis[t]) * dt_hours)
+            cost_terms.append(0.005 * curt[t] * dt_hours)
 
             # Instantaneous balance: buy + pv + dis == load + sell + ch + curt
             prob += buy[t] + float(pvs[t]) + dis[t] == float(loads[t]) + sell[t] + ch[t] + curt[t]
@@ -241,9 +267,9 @@ class LpArbitrageOptimizerRT:
             pv_surplus_t = max(0.0, float(pvs[t]) - float(loads[t]))
             prob += ch_pv[t] <= pv_surplus_t
 
-            # Battery SoC continuity equation
+            # Battery SoC continuity equation with exact dt_hours scaling
             prev = cur_soc if t == 0 else soc[t - 1]
-            prob += soc[t] == prev + self.charge_eff * ch[t] - dis[t] * self.inv_discharge_eff
+            prob += soc[t] == prev + (self.charge_eff * ch[t] - dis[t] * self.inv_discharge_eff) * dt_hours
 
             # Zero Export when effective sell price is negative
             if p_sell_pred[t] < 0 and ALLOW_CURTAILMENT:
@@ -252,10 +278,10 @@ class LpArbitrageOptimizerRT:
             # ADAPTIVE RISK CONSTRAINT (Replaces all hardcoded clock-hour heuristics)
             q_star, reserved_solar = compute_adaptive_risk_metrics_rt(
                 t, t_steps, spots, p_buy_pred, p_sell_pred, pvs, loads, cloud_cover,
-                self.discharge_eff, self.charge_eff, self.degradation_cost
+                self.discharge_eff, self.charge_eff, self.degradation_cost, dt_hours=dt_hours
             )
 
-            cum_grid_charge_expr.append(ch_grid[t])
+            cum_grid_charge_expr.append(ch_grid[t] * dt_hours)
 
             if spots[t] < 0:
                 # Negative price: unlimited grid charge (grid pays us)
@@ -273,16 +299,15 @@ class LpArbitrageOptimizerRT:
         # Solve LP using CBC solver without console spam
         prob.solve(pl.PULP_CBC_CMD(msg=False))
 
-        schedule: dict[int, PlannedHourAction] = {}
+        schedule = ScheduleDict()
         if pl.LpStatus[prob.status] not in ("Optimal", "Feasible"):
             logger.warning("PuLP LP solver did not find optimal solution (status %s). Using fallback.", pl.LpStatus[prob.status])
             return schedule
 
         for t in range(t_steps):
             h = int(hours[t])
-            if h in schedule:
-                # Keep earliest planned action (closest to current MPC step)
-                continue
+            m = int(m_slots[t]) if minute_slots is not None else 0
+
             val_ch = max(0.0, float(pl.value(ch[t])) if pl.value(ch[t]) is not None else 0.0)
             val_ch_grid = max(0.0, float(pl.value(ch_grid[t])) if pl.value(ch_grid[t]) is not None else 0.0)
             val_dis = max(0.0, float(pl.value(dis[t])) if pl.value(dis[t]) is not None else 0.0)
@@ -319,7 +344,11 @@ class LpArbitrageOptimizerRT:
                     cmd = CzechCommand.COVER_HOME
                     reason = CzechReason.HOME_SAVING
 
-            schedule[h] = PlannedHourAction(
+            start_min = m * 15 if dt_hours == 0.25 else 0
+            end_min = start_min + 15 if dt_hours == 0.25 else 0
+            slot_str = f"{h:02d}:{start_min:02d} - {h:02d}:{end_min:02d}" if dt_hours == 0.25 else f"{h:02d}:00"
+
+            action = PlannedHourAction(
                 hour=h,
                 command=cmd,
                 target_power_w=target_power_w,
@@ -332,6 +361,17 @@ class LpArbitrageOptimizerRT:
                 planned_end_soc_pct=round(soc_pct, 1),
                 effective_buy_czk=round(float(p_buy_pred[t]), 3),
                 effective_sell_czk=round(float(p_sell_pred[t]), 3),
+                minute_slot=m,
+                time_str=slot_str,
             )
+
+            if dt_hours < 0.5:
+                # 15-minute resolution: key is (hour, minute_slot)
+                if (h, m) not in schedule:
+                    schedule[(h, m)] = action
+            else:
+                # Hourly resolution: key is hour
+                if h not in schedule:
+                    schedule[h] = action
 
         return schedule

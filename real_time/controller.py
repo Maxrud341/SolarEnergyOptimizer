@@ -67,11 +67,11 @@ class RealTimeController:
         if schedule_key == self._last_schedule_key and self._lp_schedule:
             return
 
-        prices_df = self.price_fetcher.get_hourly_price_vector(start_dt=hour_start, hours=24)
+        prices_df = self.price_fetcher.get_price_vector_15min(start_dt=hour_start, hours=24)
         if prices_df.empty:
             return
 
-        pv_df = self.weather_fetcher.get_pv_forecast_vector(start_dt=hour_start, hours=24)
+        pv_df = self.weather_fetcher.get_pv_forecast_vector_15min(start_dt=hour_start, hours=24)
         pv_forecast = pv_df["pv_forecast_kw"].tolist() if not pv_df.empty else [0.0] * len(prices_df)
 
         # Baseline household load profile (kW) based on typical residential patterns
@@ -88,10 +88,11 @@ class RealTimeController:
 
         cur_soc_kwh = (self.battery_sim.soc / 100.0) * BATTERY_CAPACITY_KWH
         hours_of_day = [row["start"].hour for _, row in prices_df.iterrows()]
+        minute_slots = [row["start"].minute // 15 for _, row in prices_df.iterrows()]
         spot_prices = prices_df["price_czk_kwh"].tolist()
         cloud_forecast = pv_df["cloud_pct"].tolist() if "cloud_pct" in pv_df.columns else None
 
-        # Solve Linear Programming Horizon (Adaptive Stochastic Risk MPC)
+        # Solve Linear Programming Horizon (Adaptive Stochastic Risk MPC) with 15-min intervals
         schedule = self.lp_optimizer.solve_horizon(
             current_soc_kwh=cur_soc_kwh,
             spot_prices=spot_prices,
@@ -99,12 +100,14 @@ class RealTimeController:
             load_forecast_kw=load_forecast,
             hours_of_day=hours_of_day,
             cloud_cover_pct=cloud_forecast,
+            dt_hours=0.25,
+            minute_slots=minute_slots,
         )
 
         if schedule:
             self._lp_schedule = schedule
             self._last_schedule_key = schedule_key
-            logger.info("LP Arbitrage schedule refreshed for %d hours ahead via PuLP.", len(schedule))
+            logger.info("LP Arbitrage 15-min schedule refreshed for %d slots ahead via PuLP.", len(schedule))
 
     def decide_tick_action(
         self,
@@ -123,7 +126,8 @@ class RealTimeController:
         self.update_daily_schedule_if_needed(current_time_dt)
 
         current_hour = current_time_dt.hour
-        planned_action = self._lp_schedule.get(current_hour)
+        current_slot = current_time_dt.minute // 15
+        planned_action = self._lp_schedule.get((current_hour, current_slot)) or self._lp_schedule.get(current_hour)
 
         if planned_action is not None and planned_action.command != CzechCommand.STANDBY:
             command = planned_action.command

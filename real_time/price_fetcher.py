@@ -156,6 +156,36 @@ class SpotPriceFetcher:
 
         return df_hourly.head(hours).reset_index(drop=True)
 
+    def get_price_vector_15min(self, start_dt: dt.datetime | None = None, hours: int = 36) -> pd.DataFrame:
+        """Return 15-minute resolution spot price vector starting from start_dt."""
+        df = self.fetch_prices()
+        total_slots = hours * 4
+        if df.empty:
+            now = start_dt or dt.datetime.now()
+            times = [now + dt.timedelta(minutes=15 * i) for i in range(total_slots)]
+            return pd.DataFrame({"start": times, "price_czk_kwh": [3.50] * total_slots})
+
+        # Resample / reindex to exact 15-minute grid using forward-fill
+        df_15m = (
+            df.set_index("start")
+            .resample("15min")
+            .ffill()
+            .reset_index()
+        )
+
+        if start_dt is not None:
+            # Truncate start_dt to the start of the 15-minute slot
+            start_slot = start_dt.replace(
+                minute=(start_dt.minute // 15) * 15, second=0, microsecond=0
+            )
+            if start_slot.tzinfo is None and df_15m["start"].dt.tz is not None:
+                df_15m["start"] = df_15m["start"].dt.tz_localize(None)
+            elif start_slot.tzinfo is not None and df_15m["start"].dt.tz is None:
+                start_slot = start_slot.tz_localize(None)
+            df_15m = df_15m[df_15m["start"] >= start_slot]
+
+        return df_15m.head(total_slots).reset_index(drop=True)
+
 
 if __name__ == "__main__":
     fetcher = SpotPriceFetcher()
