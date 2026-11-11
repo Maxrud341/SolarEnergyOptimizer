@@ -41,24 +41,43 @@ except ImportError:
 
 def get_tomorrow_plan(target_date: dt.date | None = None) -> None:
     now = dt.datetime.now()
-    if target_date is None:
-        target_date = (now + dt.timedelta(days=1)).date()
-
-    start_dt = dt.datetime.combine(target_date, dt.time.min)
-
-    print("=" * 80)
-    print(f"🔮 ПЛАН ОПТИМИЗАЦИИ И АРБИТРАЖА НА: {target_date.strftime('%d.%m.%Y (%A)')}")
-    print("=" * 80)
-
-    # 1. Fetch spot prices (15-minute resolution)
     pf = SpotPriceFetcher()
-    prices_df = pf.get_price_vector_15min(start_dt=start_dt, hours=24)
 
-    if prices_df.empty or len(prices_df) < 48:
+    tomorrow_date = (now + dt.timedelta(days=1)).date()
+    start_tomorrow = dt.datetime.combine(tomorrow_date, dt.time.min)
+    prices_tomorrow = pf.get_price_vector_15min(start_dt=start_tomorrow, hours=24)
+
+    is_fallback_today = False
+    if target_date is not None:
+        start_dt = dt.datetime.combine(target_date, dt.time.min)
+        prices_df = pf.get_price_vector_15min(start_dt=start_dt, hours=24)
+        title_str = f"🔮 ПЛАН ОПТИМИЗАЦИИ И АРБИТРАЖА НА: {target_date.strftime('%d.%m.%Y (%A)')}"
+    elif len(prices_tomorrow) >= 48:
+        target_date = tomorrow_date
+        start_dt = start_tomorrow
+        prices_df = prices_tomorrow
+        title_str = f"🔮 ПЛАН ОПТИМИЗАЦИИ И АРБИТРАЖА НА: {target_date.strftime('%d.%m.%Y (%A)')}"
+    else:
+        # Tomorrow not published yet: calculate across all known slots on the rest of today
+        is_fallback_today = True
+        target_date = now.date()
+        start_slot = now.replace(minute=(now.minute // 15) * 15, second=0, microsecond=0)
+        start_dt = start_slot
+        prices_df = pf.get_price_vector_15min(start_dt=start_slot, hours=24)
+        title_str = f"🔮 ПЛАН ОПТИМИЗАЦИИ ПО ИЗВЕСТНЫМ ЧАСАМ: {now.strftime('%d.%m.%Y (%A)')} ({start_slot.strftime('%H:%M')} – 23:45)"
+
+    if prices_df.empty:
         print(f"\n⚠️  Цены OTE ČR на {target_date.strftime('%d.%m.%Y')} еще не опубликованы.")
-        print("   Биржевой аукцион закрывается ежедневно в 13:00, публикация в 13:10–13:15 CET.")
-        print("   Запустите скрипт после 13:15.\n")
+        print("   Биржевой аукцион закрывается ежедневно в 13:00, публикация в 13:10–13:15 CET.\n")
         return
+
+    print("=" * 80)
+    print(title_str)
+    print("=" * 80)
+
+    if is_fallback_today:
+        print(f"ℹ️  Цены OTE ČR на завтра ({tomorrow_date.strftime('%d.%m.%Y')}) еще не опубликованы (публикация после ~13:15 CET).")
+        print("   ✅ Рассчитываю оптимизацию по уже известным слотам на остаток сегодняшнего дня:\n")
 
     # 2. Fetch solar forecast (15-minute interpolated)
     wf = SolarWeatherFetcher()
@@ -80,10 +99,22 @@ def get_tomorrow_plan(target_date: dt.date | None = None) -> None:
             load_forecast.append(0.25)
 
     # 4. Run Linear Programming Optimizer with Adaptive Risk (15-min intervals)
+    cur_soc_pct = 20.0
+    if is_fallback_today:
+        try:
+            from real_time.database import load_sim_soc
+            cur_soc_pct = load_sim_soc(default=20.0)
+        except Exception:
+            try:
+                from database import load_sim_soc
+                cur_soc_pct = load_sim_soc(default=20.0)
+            except Exception:
+                cur_soc_pct = 20.0
+
     opt = LpArbitrageOptimizerRT()
     cloud_forecast = pv_df["cloud_pct"].tolist() if "cloud_pct" in pv_df.columns else None
     schedule = opt.solve_horizon(
-        current_soc_kwh=BATTERY_CAPACITY_KWH * 0.20,  # Assume 20% initial floor
+        current_soc_kwh=BATTERY_CAPACITY_KWH * (cur_soc_pct / 100.0),
         spot_prices=spot_prices,
         pv_forecast_kw=pv_forecast,
         load_forecast_kw=load_forecast,
@@ -182,8 +213,12 @@ def get_tomorrow_plan(target_date: dt.date | None = None) -> None:
 if __name__ == "__main__":
     target = None
     if len(sys.argv) > 1:
-        try:
-            target = dt.datetime.strptime(sys.argv[1], "%Y-%m-%d").date()
-        except ValueError:
-            pass
+        arg = sys.argv[1].lower()
+        if arg in ("today", "--today", "-t"):
+            target = dt.datetime.now().date()
+        else:
+            try:
+                target = dt.datetime.strptime(sys.argv[1], "%Y-%m-%d").date()
+            except ValueError:
+                pass
     get_tomorrow_plan(target)
