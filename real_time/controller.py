@@ -58,19 +58,20 @@ class RealTimeController:
         """Align simulated SoC with physical hardware (used upon cold start or after long outage)."""
         self.battery_sim.set_soc(real_soc)
 
-    def update_daily_schedule_if_needed(self) -> None:
+    def update_daily_schedule_if_needed(self, current_dt: dt.datetime | None = None) -> None:
         """Execute PuLP 24-hour Linear Programming MPC optimization."""
-        now = dt.datetime.now()
-        schedule_key = now.strftime("%Y-%m-%d-%H")
+        ref_dt = current_dt or dt.datetime.now()
+        hour_start = ref_dt.replace(minute=0, second=0, microsecond=0)
+        schedule_key = hour_start.strftime("%Y-%m-%d-%H")
 
         if schedule_key == self._last_schedule_key and self._lp_schedule:
             return
 
-        prices_df = self.price_fetcher.get_hourly_price_vector(start_dt=now, hours=24)
+        prices_df = self.price_fetcher.get_hourly_price_vector(start_dt=hour_start, hours=24)
         if prices_df.empty:
             return
 
-        pv_df = self.weather_fetcher.get_pv_forecast_vector(start_dt=now, hours=24)
+        pv_df = self.weather_fetcher.get_pv_forecast_vector(start_dt=hour_start, hours=24)
         pv_forecast = pv_df["pv_forecast_kw"].tolist() if not pv_df.empty else [0.0] * len(prices_df)
 
         # Baseline household load profile (kW) based on typical residential patterns
@@ -119,7 +120,7 @@ class RealTimeController:
         Returns:
             (command_json_payload, step_result)
         """
-        self.update_daily_schedule_if_needed()
+        self.update_daily_schedule_if_needed(current_time_dt)
 
         current_hour = current_time_dt.hour
         planned_action = self._lp_schedule.get(current_hour)
@@ -215,6 +216,7 @@ class RealTimeController:
             p_pv_w=p_pv_w,
             dt_seconds=dt_seconds,
             price_czk_kwh=price_czk,
+            reason=reason,
         )
 
         time_str = current_time_dt.strftime("%d.%m.%Y %H:%M:%S")

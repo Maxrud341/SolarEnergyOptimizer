@@ -146,10 +146,13 @@ class SpotPriceFetcher:
         )
 
         if start_dt is not None:
-            # Localize / align timestamp comparison
-            if start_dt.tzinfo is None and df_hourly["start"].dt.tz is not None:
+            # Truncate start_dt to the start of the hour so the current hour is included
+            start_hour = start_dt.replace(minute=0, second=0, microsecond=0)
+            if start_hour.tzinfo is None and df_hourly["start"].dt.tz is not None:
                 df_hourly["start"] = df_hourly["start"].dt.tz_localize(None)
-            df_hourly = df_hourly[df_hourly["start"] >= start_dt]
+            elif start_hour.tzinfo is not None and df_hourly["start"].dt.tz is None:
+                start_hour = start_hour.tz_localize(None)
+            df_hourly = df_hourly[df_hourly["start"] >= start_hour]
 
         return df_hourly.head(hours).reset_index(drop=True)
 

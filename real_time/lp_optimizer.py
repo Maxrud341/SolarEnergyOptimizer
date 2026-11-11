@@ -280,6 +280,9 @@ class LpArbitrageOptimizerRT:
 
         for t in range(t_steps):
             h = int(hours[t])
+            if h in schedule:
+                # Keep earliest planned action (closest to current MPC step)
+                continue
             val_ch = max(0.0, float(pl.value(ch[t])) if pl.value(ch[t]) is not None else 0.0)
             val_ch_grid = max(0.0, float(pl.value(ch_grid[t])) if pl.value(ch_grid[t]) is not None else 0.0)
             val_dis = max(0.0, float(pl.value(dis[t])) if pl.value(dis[t]) is not None else 0.0)

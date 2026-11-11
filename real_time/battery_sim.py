@@ -69,6 +69,7 @@ class FoxEssBatterySimulator:
         p_pv_w: float,
         dt_seconds: float,
         price_czk_kwh: float,
+        reason: str = "",
     ) -> BatteryStepResult:
         """Execute one dynamic step of duration dt_seconds.
 
@@ -199,7 +200,7 @@ class FoxEssBatterySimulator:
 
         else:  # STANDBY or idle
             effective_command = CzechCommand.STANDBY
-            effective_reason = CzechReason.STANDBY_SCHEDULE
+            effective_reason = reason if reason else CzechReason.STANDBY_SCHEDULE
             p_bat_w = 0.0
 
         # -------------------------------------------------------------

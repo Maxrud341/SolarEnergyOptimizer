@@ -119,9 +119,12 @@ class SolarWeatherFetcher:
             return pd.DataFrame({"start": times, "pv_forecast_kw": [0.0] * hours})
 
         if start_dt is not None:
-            if start_dt.tzinfo is None and df["start"].dt.tz is not None:
+            start_hour = start_dt.replace(minute=0, second=0, microsecond=0)
+            if start_hour.tzinfo is None and df["start"].dt.tz is not None:
                 df["start"] = df["start"].dt.tz_localize(None)
-            df = df[df["start"] >= start_dt]
+            elif start_hour.tzinfo is not None and df["start"].dt.tz is None:
+                start_hour = start_hour.tz_localize(None)
+            df = df[df["start"] >= start_hour]
 
         return df.head(hours).reset_index(drop=True)
 
